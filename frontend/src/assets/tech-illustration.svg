@@ -1,0 +1,20 @@
+<svg width="600" height="400" xmlns="http://www.w3.org/2000/svg">
+  <g stroke="#94a3b8" stroke-width="2">
+    <path d="M 50 50 L 150 50 L 150 150 L 250 150" fill="none" />
+    <path d="M 550 350 L 450 350 L 450 250 L 350 250" fill="none" />
+    <path d="M 50 200 L 100 200 L 100 100" fill="none" />
+    <path d="M 550 200 L 500 200 L 500 300" fill="none" />
+    <path d="M 200 50 L 200 100 L 300 100" fill="none" />
+    <path d="M 400 350 L 400 300 L 300 300" fill="none" />
+  </g>
+  <g fill="#f1f5f9">
+    <circle cx="50" cy="50" r="5" />
+    <circle cx="150" cy="50" r="5" />
+    <circle cx="150" cy="150" r="5" />
+    <circle cx="250" cy="150" r="5" />
+    <circle cx="550" cy="350" r="5" />
+    <circle cx="450" cy="350" r="5" />
+    <circle cx="450" cy="250" r="5" />
+    <circle cx="350" cy="250" r="5" />
+  </g>
+</svg>
