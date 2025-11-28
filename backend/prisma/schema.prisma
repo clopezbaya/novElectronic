@@ -11,6 +11,42 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  password  String
+  role      String   @default("USER") // USER or ADMIN
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id                Int         @id @default(autoincrement())
+  userId            Int
+  user              User        @relation(fields: [userId], references: [id])
+  subtotal          Float       @default(0)
+  shippingCost      Float       @default(0)
+  total             Float
+  status            String      @default("PENDING_PAYMENT") // PENDING_PAYMENT, PENDING_VERIFICATION, PAID, SHIPPED, DELIVERED, CANCELED
+  shippingAddress   Json?
+  proofOfPaymentUrl String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  orderItems        OrderItem[]
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  order     Order    @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float
+}
+
 model Brand {
   id        Int      @id @default(autoincrement())
   name      String   @unique
@@ -37,4 +73,5 @@ model Product {
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   categories    Category[]
+  orderItems    OrderItem[]
 }

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `order` ADD COLUMN `shippingCost` DOUBLE NOT NULL DEFAULT 0,
+    ADD COLUMN `subtotal` DOUBLE NOT NULL DEFAULT 0;

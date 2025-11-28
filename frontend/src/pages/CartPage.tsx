@@ -5,6 +5,7 @@ import { formatPrice } from '../utils/formatPrice';
 import { Link } from 'react-router-dom';
 import { FaTrashAlt, FaShoppingCart } from 'react-icons/fa';
 import { nanoid } from 'nanoid';
+import Breadcrumbs from '../components/Breadcrumbs';
 
 const CartPage: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -40,11 +41,12 @@ const CartPage: React.FC = () => {
   return (
     <div className="bg-white">
       <div className="mx-auto max-w-2xl px-4 pb-24 pt-16 sm:px-6 lg:max-w-7xl lg:px-8">
-        <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Carrito de Compras</h1>
+        <Breadcrumbs />
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl mt-8">Shopping Cart</h1>
         <form className="mt-12 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-12 xl:gap-x-16">
           <section aria-labelledby="cart-heading" className="lg:col-span-7">
             <h2 id="cart-heading" className="sr-only">
-              Artículos en tu carrito de compras
+              Items in your shopping cart
             </h2>
 
             <ul role="list" className="divide-y divide-gray-200 border-b border-t border-gray-200">
@@ -128,12 +130,12 @@ const CartPage: React.FC = () => {
                 <dt className="text-sm text-gray-600">Subtotal</dt>
                 <dd className="text-sm font-medium text-gray-900">{formatPrice(cartTotal, cartItems[0]?.currency || 'Bs')}</dd>
               </div>
-              <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-                <dt className="flex items-center text-sm text-gray-600">
-                  <span>Costo de envío estimado</span>
-                </dt>
-                <dd className="text-sm font-medium text-gray-900">{formatPrice(0, cartItems[0]?.currency || 'Bs')}</dd>
-              </div>
+                  <div className="flex items-center justify-between border-t border-gray-200 pt-4">
+                    <dt className="flex items-center text-sm text-gray-600">
+                      <span>Envío</span>
+                    </dt>
+                    <dd className="text-sm font-medium text-gray-900">Se calcula al finalizar la compra</dd>
+                  </div>
               <div className="flex items-center justify-between border-t border-gray-200 pt-4">
                 <dt className="text-base font-medium text-gray-900">Total del pedido</dt>
                 <dd className="text-base font-medium text-gray-900">{formatPrice(cartTotal, cartItems[0]?.currency || 'Bs')}</dd>
@@ -141,11 +143,13 @@ const CartPage: React.FC = () => {
             </dl>
 
             <div className="mt-6">
-                                                                <Link
-                                                                  to="/checkout"
-                                                                  className="w-full rounded-md border border-transparent bg-gray-900 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 focus:ring-offset-gray-50"
-                                                                >                                                    Finalizar compra
-                                                  </Link>            </div>
+                <Link
+                  to="/checkout"
+                  className="w-full rounded-md border border-transparent bg-gray-900 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 focus:ring-offset-gray-50"
+                >
+                    Finalizar compra
+                </Link>
+            </div>
           </section>
         </form>
       </div>

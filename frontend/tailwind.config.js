@@ -2,7 +2,11 @@
 module.exports = {
     content: ['./src/**/*.{js,jsx,ts,tsx}'],
     theme: {
-        extend: {},
+        extend: {
+        colors: {
+          secondary: '#06A1D5',
+        },
+    },
     },
     plugins: [require('@tailwindcss/aspect-ratio')],
 };

@@ -1,35 +1,92 @@
-import React, { useState } from 'react';
-import { useAppSelector } from '../app/hooks';
+import React, { useState, useEffect } from 'react';
+import { useAppSelector, useAppDispatch } from '../app/hooks';
 import { formatPrice } from '../utils/formatPrice';
 import { Link, useNavigate } from 'react-router-dom';
+import customFetch from '../api/customFetch';
+import toast from 'react-hot-toast';
+import { clearCart } from '../features/cart/cartSlice';
+import Breadcrumbs from '../components/Breadcrumbs';
+
+const bolivianDepartments = [
+    "Beni", "Chuquisaca", "Cochabamba", "La Paz", "Oruro", "Pando", "Potosí", "Santa Cruz", "Tarija"
+];
 
 const CheckoutPage: React.FC = () => {
+  const dispatch = useAppDispatch();
   const { cartTotal, cartItems } = useAppSelector((state: any) => state.cart);
+  const { isAuthenticated, token } = useAppSelector((state: any) => state.auth);
   const navigate = useNavigate();
 
   const [shippingInfo, setShippingInfo] = useState({
     firstName: '',
     lastName: '',
     address: '',
-    city: '',
-    zipCode: '',
-    country: '',
+    city: 'Santa Cruz',
     phone: '',
     email: '',
+    observations: '',
   });
+  const [loading, setLoading] = useState(false);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const shippingCost = shippingInfo.city === 'Cochabamba' ? 0 : 20;
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      toast.error('Necesitas iniciar sesión para finalizar la compra.');
+      navigate('/login');
+    }
+  }, [isAuthenticated, navigate]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setShippingInfo((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would typically send the order to the backend
-    console.log('Order submitted:', { shippingInfo, cartItems, cartTotal });
-    // For now, just navigate to the order confirmation page
-    navigate('/order-confirmation');
+    if (!isAuthenticated || !token) {
+        toast.error('Error: No estás autenticado.');
+        navigate('/login');
+        return;
+    }
+    if (cartItems.length === 0) {
+        toast.error('El carrito está vacío. Añade productos para comprar.');
+        navigate('/');
+        return;
+    }
+
+    setLoading(true);
+    try {
+        const orderData = {
+            orderItems: cartItems.map(item => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                price: item.price,
+            })),
+            subtotal: cartTotal,
+            shippingCost: shippingCost,
+            total: cartTotal + shippingCost,
+            shippingAddress: shippingInfo,
+        };
+        const response = await customFetch.post('/orders', orderData, {
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
+        });
+        toast.success('Pedido creado exitosamente. Redirigiendo a la confirmación.');
+        dispatch(clearCart());
+        navigate('/order-confirmation', { state: { order: response.data.order } });
+    } catch (error: any) {
+        console.error('Error al crear el pedido:', error);
+        toast.error(error.response?.data?.message || 'Error al crear el pedido. Inténtalo de nuevo.');
+    } finally {
+        setLoading(false);
+    }
   };
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   if (cartItems.length === 0) {
     return (
@@ -47,195 +104,157 @@ const CheckoutPage: React.FC = () => {
   }
 
   return (
-    <div className="bg-gray-50">
+    <div className="bg-gray-100">
       <main className="mx-auto max-w-7xl px-4 pb-24 pt-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl lg:max-w-none">
+          <Breadcrumbs />
           <h1 className="sr-only">Finalizar compra</h1>
 
-          <form onSubmit={handleSubmit} className="lg:grid lg:grid-cols-2 lg:gap-x-12 xl:gap-x-16">
-            <div>
-              <div>
-                <h2 className="text-lg font-medium text-gray-900">Información de contacto</h2>
+          <form onSubmit={handleSubmit} className="lg:grid lg:grid-cols-2 lg:gap-x-12 xl:gap-x-16 mt-8">
+            <div className="bg-white p-8 rounded-lg shadow-md">
+                <h2 className="text-2xl font-semibold text-gray-900 mb-6">Información de contacto</h2>
 
-                <div className="mt-4">
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                    Correo electrónico
-                  </label>
-                  <div className="mt-1">
+                <div className="relative mb-6">
                     <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      autoComplete="email"
-                      value={shippingInfo.email}
-                      onChange={handleInputChange}
-                      className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                      required
+                    type="email"
+                    id="email"
+                    name="email"
+                    autoComplete="email"
+                    value={shippingInfo.email}
+                    onChange={handleInputChange}
+                    className="block px-3.5 pb-2.5 pt-5 w-full text-base text-gray-900 bg-transparent rounded-lg border border-gray-400 appearance-none focus:outline-none focus:ring-0 focus:border-gray-900 peer"
+                    placeholder=" "
+                    required
                     />
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-10 border-t border-gray-200 pt-10">
-                <h2 className="text-lg font-medium text-gray-900">Información de envío</h2>
-
-                <div className="mt-4 grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-4">
-                  <div>
-                    <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-                      Nombre
+                    <label htmlFor="email" className="absolute text-base text-gray-500 duration-300 transform -translate-y-4 scale-75 top-4 z-10 origin-[0] start-3.5 peer-focus:text-gray-900 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-4">
+                    Correo electrónico
                     </label>
-                    <div className="mt-1">
-                      <input
+                </div>
+
+                <h2 className="text-2xl font-semibold text-gray-900 mt-10 border-t border-gray-200 pt-10 mb-6">Información de envío</h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
+                    <div className="relative">
+                        <input
                         type="text"
                         id="firstName"
                         name="firstName"
                         autoComplete="given-name"
                         value={shippingInfo.firstName}
                         onChange={handleInputChange}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        className="block px-3.5 pb-2.5 pt-5 w-full text-base text-gray-900 bg-transparent rounded-lg border border-gray-400 appearance-none focus:outline-none focus:ring-0 focus:border-gray-900 peer"
+                        placeholder=" "
                         required
-                      />
+                        />
+                        <label htmlFor="firstName" className="absolute text-base text-gray-500 duration-300 transform -translate-y-4 scale-75 top-4 z-10 origin-[0] start-3.5 peer-focus:text-gray-900 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-4">
+                        Nombre
+                        </label>
                     </div>
-                  </div>
 
-                  <div>
-                    <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-                      Apellido
-                    </label>
-                    <div className="mt-1">
-                      <input
+                    <div className="relative">
+                        <input
                         type="text"
                         id="lastName"
                         name="lastName"
                         autoComplete="family-name"
                         value={shippingInfo.lastName}
                         onChange={handleInputChange}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        className="block px-3.5 pb-2.5 pt-5 w-full text-base text-gray-900 bg-transparent rounded-lg border border-gray-400 appearance-none focus:outline-none focus:ring-0 focus:border-gray-900 peer"
+                        placeholder=" "
                         required
-                      />
+                        />
+                        <label htmlFor="lastName" className="absolute text-base text-gray-500 duration-300 transform -translate-y-4 scale-75 top-4 z-10 origin-[0] start-3.5 peer-focus:text-gray-900 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-4">
+                        Apellido
+                        </label>
                     </div>
-                  </div>
 
-                  <div className="sm:col-span-2">
-                    <label htmlFor="address" className="block text-sm font-medium text-gray-700">
-                      Dirección
-                    </label>
-                    <div className="mt-1">
-                      <input
+                    <div className="sm:col-span-2 relative">
+                        <input
                         type="text"
                         name="address"
                         id="address"
                         autoComplete="street-address"
                         value={shippingInfo.address}
                         onChange={handleInputChange}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        className="block px-3.5 pb-2.5 pt-5 w-full text-base text-gray-900 bg-transparent rounded-lg border border-gray-400 appearance-none focus:outline-none focus:ring-0 focus:border-gray-900 peer"
+                        placeholder=" "
                         required
-                      />
+                        />
+                        <label htmlFor="address" className="absolute text-base text-gray-500 duration-300 transform -translate-y-4 scale-75 top-4 z-10 origin-[0] start-3.5 peer-focus:text-gray-900 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-4">
+                        Dirección
+                        </label>
                     </div>
-                  </div>
 
-                  <div>
-                    <label htmlFor="city" className="block text-sm font-medium text-gray-700">
-                      Ciudad
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="text"
-                        name="city"
+                    <div className="relative">
+                        <select
                         id="city"
-                        autoComplete="address-level2"
+                        name="city"
                         value={shippingInfo.city}
                         onChange={handleInputChange}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        className="block px-3.5 pb-2.5 pt-5 w-full text-base text-gray-900 bg-transparent rounded-lg border border-gray-400 appearance-none focus:outline-none focus:ring-0 focus:border-gray-900 peer"
                         required
-                      />
+                        >
+                        {bolivianDepartments.map(dep => (
+                            <option key={dep} value={dep}>{dep}</option>
+                        ))}
+                        </select>
+                        <label htmlFor="city" className="absolute text-base text-gray-500 duration-300 transform -translate-y-4 scale-75 top-4 z-10 origin-[0] start-3.5 peer-focus:text-gray-900">
+                        Departamento
+                        </label>
                     </div>
-                  </div>
 
-                  <div>
-                    <label htmlFor="country" className="block text-sm font-medium text-gray-700">
-                      País
-                    </label>
-                    <div className="mt-1">
+                    <div className="sm:col-span-2 relative">
                         <input
-                            type="text"
-                            name="country"
-                            id="country"
-                            autoComplete="country-name"
-                            value={shippingInfo.country}
-                            onChange={handleInputChange}
-                            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                            required
-                        />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label htmlFor="zipCode" className="block text-sm font-medium text-gray-700">
-                      Código postal
-                    </label>
-                    <div className="mt-1">
-                      <input
-                        type="text"
-                        name="zipCode"
-                        id="zipCode"
-                        autoComplete="postal-code"
-                        value={shippingInfo.zipCode}
-                        onChange={handleInputChange}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="sm:col-span-2">
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                      Teléfono
-                    </label>
-                    <div className="mt-1">
-                      <input
                         type="text"
                         name="phone"
                         id="phone"
                         autoComplete="tel"
                         value={shippingInfo.phone}
                         onChange={handleInputChange}
-                        className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        className="block px-3.5 pb-2.5 pt-5 w-full text-base text-gray-900 bg-transparent rounded-lg border border-gray-400 appearance-none focus:outline-none focus:ring-0 focus:border-gray-900 peer"
+                        placeholder=" "
                         required
-                      />
+                        />
+                        <label htmlFor="phone" className="absolute text-base text-gray-500 duration-300 transform -translate-y-4 scale-75 top-4 z-10 origin-[0] start-3.5 peer-focus:text-gray-900 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-4">
+                        Teléfono
+                        </label>
                     </div>
-                  </div>
+
+                    <div className="sm:col-span-2 relative">
+                        <textarea
+                        name="observations"
+                        id="observations"
+                        rows={3}
+                        value={shippingInfo.observations}
+                        onChange={handleInputChange}
+                        className="block px-3.5 pb-2.5 pt-5 w-full text-base text-gray-900 bg-transparent rounded-lg border border-gray-400 appearance-none focus:outline-none focus:ring-0 focus:border-gray-900 peer"
+                        placeholder=" "
+                        />
+                        <label htmlFor="observations" className="absolute text-base text-gray-500 duration-300 transform -translate-y-4 scale-75 top-4 z-10 origin-[0] start-3.5 peer-focus:text-gray-900 peer-placeholder-shown:scale-100 peer-placeholder-shown:translate-y-0 peer-focus:scale-75 peer-focus:-translate-y-4">
+                        Observaciones o recomendaciones
+                        </label>
+                    </div>
                 </div>
-              </div>
-
-              {/* Pago */}
-              <div className="mt-10 border-t border-gray-200 pt-10">
-                <h2 className="text-lg font-medium text-gray-900">Pago</h2>
-                  <p className="mt-4 text-sm text-gray-500">
-                    Por el momento solo aceptamos pago contra entrega.
-                  </p>
-              </div>
-
             </div>
-
-            {/* Resumen del pedido */}
+            
+            {/* Order Summary */}
             <div className="mt-10 lg:mt-0">
-              <h2 className="text-lg font-medium text-gray-900">Resumen del pedido</h2>
+              <h2 className="text-2xl font-semibold text-gray-900">Resumen del pedido</h2>
 
-              <div className="mt-4 rounded-lg border border-gray-200 bg-white shadow-sm">
+              <div className="mt-6 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <h3 className="sr-only">Artículos en tu carrito</h3>
                 <ul role="list" className="divide-y divide-gray-200">
                   {cartItems.map((product:any) => (
                     <li key={product.id} className="flex px-4 py-6 sm:px-6">
                       <div className="flex-shrink-0">
-                        <img src={product.image} alt={product.title} className="w-20 rounded-md" />
+                        <img src={product.image} alt={product.title} className="w-24 rounded-md" />
                       </div>
 
                       <div className="ml-6 flex flex-1 flex-col">
                         <div className="flex">
                           <div className="min-w-0 flex-1">
-                            <h4 className="text-sm">
-                              <a href="#" className="font-medium text-gray-700 hover:text-gray-800">
+                            <h4 className="text-base">
+                              <a href="#" className="font-semibold text-gray-700 hover:text-gray-800">
                                 {product.title}
                               </a>
                             </h4>
@@ -245,7 +264,7 @@ const CheckoutPage: React.FC = () => {
                         </div>
 
                         <div className="flex flex-1 items-end justify-between pt-2">
-                          <p className="mt-1 text-sm font-medium text-gray-900">{formatPrice(product.price, product.currency)}</p>
+                          <p className="mt-1 text-base font-medium text-gray-900">{formatPrice(product.price, product.currency)}</p>
                         </div>
                       </div>
                     </li>
@@ -253,23 +272,23 @@ const CheckoutPage: React.FC = () => {
                 </ul>
                 <dl className="space-y-6 border-t border-gray-200 px-4 py-6 sm:px-6">
                   <div className="flex items-center justify-between">
-                    <dt className="text-sm">Subtotal</dt>
-                    <dd className="text-sm font-medium text-gray-900">{formatPrice(cartTotal, cartItems[0]?.currency || 'Bs')}</dd>
+                    <dt className="text-base">Subtotal</dt>
+                    <dd className="text-base font-medium text-gray-900">{formatPrice(cartTotal, cartItems[0]?.currency || 'Bs')}</dd>
                   </div>
                   <div className="flex items-center justify-between">
-                    <dt className="text-sm">Envío</dt>
-                    <dd className="text-sm font-medium text-gray-900">{formatPrice(0, cartItems[0]?.currency || 'Bs')}</dd>
+                    <dt className="text-base">Envío</dt>
+                    <dd className="text-base font-medium text-gray-900">{formatPrice(shippingCost, 'Bs')}</dd>
                   </div>
-                  <div className="flex items-center justify-between border-t border-gray-300 pt-6 text-base font-medium text-gray-900">
+                  <div className="flex items-center justify-between border-t border-gray-300 pt-6 text-xl font-bold text-gray-900">
                     <dt>Total</dt>
-                    <dd>{formatPrice(cartTotal, cartItems[0]?.currency || 'Bs')}</dd>
+                    <dd>{formatPrice(cartTotal + shippingCost, 'Bs')}</dd>
                   </div>
                 </dl>
 
                 <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
                   <button
                     type="submit"
-                    className="w-full rounded-md border border-transparent bg-gray-900 px-4 py-3 text-base font-medium text-white shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 focus:ring-offset-gray-50"
+                    className="w-full rounded-lg border border-transparent bg-gray-900 px-4 py-3 text-lg font-medium text-white shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 focus:ring-offset-gray-50"
                   >
                     Confirmar pedido
                   </button>
