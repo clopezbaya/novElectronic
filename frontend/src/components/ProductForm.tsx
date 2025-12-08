@@ -9,9 +9,10 @@ interface ProductFormProps {
     onCategoryChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     loading: boolean;
     productData: ProductFormData | null; // Can be null initially
+    isEditing: boolean;
 }
 
-const ProductForm: React.FC<ProductFormProps> = ({ brands, categories, onSubmit, onFormChange, onCategoryChange, loading, productData }) => {
+const ProductForm: React.FC<ProductFormProps> = ({ brands, categories, onSubmit, onFormChange, onCategoryChange, loading, productData, isEditing }) => {
     
     const [errors, setErrors] = useState<Partial<Record<keyof ProductFormData, string>>>({});
 
@@ -132,7 +133,7 @@ const ProductForm: React.FC<ProductFormProps> = ({ brands, categories, onSubmit,
             
             <div className="flex justify-end pt-6 border-t border-gray-200">
                 <button type="submit" className="bg-gray-900 text-white px-8 py-3 rounded-lg text-base font-medium hover:bg-gray-700 disabled:opacity-50" disabled={loading || isFormInvalid}>
-                    {loading ? 'Guardando...' : (productData ? 'Actualizar Producto' : 'Crear Producto')}
+                    {loading ? 'Guardando...' : (isEditing ? 'Actualizar Producto' : 'Crear Producto')}
                 </button>
             </div>
         </form>

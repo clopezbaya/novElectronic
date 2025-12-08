@@ -122,6 +122,7 @@ const EditProductPage: React.FC = () => {
                     onCategoryChange={handleCategoryChange}
                     loading={loading}
                     productData={productData}
+                    isEditing={true}
                 />
             </div>
         </div>

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
@@ -12,6 +13,7 @@ import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
 import MyOrdersPage from './pages/MyOrdersPage';
+import GoogleAuthCallbackPage from './pages/GoogleAuthCallbackPage'; // Import GoogleAuthCallbackPage
 
 // Admin Imports
 import AdminRoute from './components/AdminRoute';
@@ -30,9 +32,10 @@ const ErrorPage = () => (
 );
 
 // Public Layout Component
-const PublicLayout = () => {
+const Layout = () => {
     return (
         <div className='flex flex-col min-h-screen'>
+            <Toaster position="top-center" />
             <Header />
             <main className='flex-grow'>
                 <Outlet />
@@ -49,7 +52,7 @@ function App() {
                 {/* Public Routes */}
                 <Route
                     path='/'
-                    element={<PublicLayout />}
+                    element={<Layout />}
                 >
                     <Route index element={<HomePage />} />
                     <Route path='brands/:brandName' element={<BrandPage />} />
@@ -63,6 +66,8 @@ function App() {
                     <Route path='profile' element={<ProfilePage />} />
                     <Route path='my-orders' element={<MyOrdersPage />} />
                 </Route>
+                {/* Google Auth Callback Route */}
+                <Route path='/auth/google/success' element={<GoogleAuthCallbackPage />} />
 
                 {/* Admin Routes */}
                 <Route
@@ -80,6 +85,7 @@ function App() {
 
                 {/* Not Found Route */}
                 <Route path='*' element={<ErrorPage />} />
+
             </Routes>
         </BrowserRouter>
     );

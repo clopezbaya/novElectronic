@@ -4,6 +4,9 @@ import { useNavigate, Link } from 'react-router-dom';
 import customFetch from '../api/customFetch';
 import toast from 'react-hot-toast';
 import { formatPrice } from '../utils/formatPrice';
+import { getTranslatedStatus, statusTranslations } from '../utils/translations';
+import ShippingProofUploadModal from '../components/ShippingProofUploadModal';
+import ImageModal from '../components/ImageModal';
 
 interface Order {
     id: number;
@@ -20,11 +23,13 @@ interface Order {
         };
         quantity: number;
     }[];
+    proofOfPaymentUrl?: string;
+    shippingProofUrl?: string;
 }
 
 const AdminPage: React.FC = () => {
     const navigate = useNavigate();
-    const { user, token, isAuthenticated } = useAppSelector((state) => state.auth);
+    const { user, token, isAuthenticated } = useAppSelector((state: any) => state.auth);
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -32,6 +37,15 @@ const AdminPage: React.FC = () => {
     const [totalPages, setTotalPages] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const [isShippingProofModalOpen, setIsShippingProofModalOpen] = useState(false);
+    const [orderToShipId, setOrderToShipId] = useState<number | null>(null);
+    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+    const [selectedImageUrl, setSelectedImageUrl] = useState('');
+
+    const handleImageClick = (imageUrl: string) => {
+        setSelectedImageUrl(imageUrl);
+        setIsImageModalOpen(true);
+    };
 
     const debouncedSearch = useDebounce(searchTerm, 500);
 
@@ -68,7 +82,17 @@ const AdminPage: React.FC = () => {
         fetchAllOrders();
     }, [fetchAllOrders]);
 
-    const handleStatusChange = async (orderId: number, newStatus: string) => {
+    const handleStatusChange = async (orderId: number, newStatus: string, currentStatus: string) => {
+        if (newStatus === 'ENVIADO') {
+            setOrderToShipId(orderId);
+            setIsShippingProofModalOpen(true);
+            // Don't change status immediately, wait for modal upload
+            // Reset the dropdown to the original status visually
+            // This will be updated after successful upload in the modal
+            setOrders(prevOrders => prevOrders.map(order => order.id === orderId ? { ...order, status: currentStatus } : order));
+            return;
+        }
+
         try {
             await customFetch.put(`/admin/orders/${orderId}`, { status: newStatus }, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -133,32 +157,38 @@ const AdminPage: React.FC = () => {
                                             order.status === 'PENDING_PAYMENT' ? 'bg-yellow-100 text-yellow-800' :
                                             order.status === 'PENDING_VERIFICATION' ? 'bg-blue-100 text-blue-800' :
                                             order.status === 'PAID' ? 'bg-green-100 text-green-800' :
+                                            order.status === 'PAYMENT_REJECTED' ? 'bg-red-200 text-red-800' :
+                                            order.status === 'ENVIADO' ? 'bg-purple-100 text-purple-800' :
+                                            order.status === 'DELIVERED' ? 'bg-gray-300 text-gray-800' :
+                                            order.status === 'CANCELED' ? 'bg-red-100 text-red-800' :
                                             'bg-gray-100 text-gray-800'
                                         }`}>
-                                        {order.status}
+                                        {getTranslatedStatus(order.status)}
                                     </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    {order.proofOfPaymentUrl ? (
-                                        <a href={`http://localhost:3000${order.proofOfPaymentUrl}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                                            Ver
-                                        </a>
-                                    ) : (
-                                        'N/A'
-                                    )}
+                                    <div className="flex flex-col space-y-2">
+                                        {order.proofOfPaymentUrl && (
+                                            <button onClick={() => handleImageClick(`http://localhost:3000${order.proofOfPaymentUrl}`)} className="text-blue-600 hover:underline">
+                                                Ver Comprobante de Pago
+                                            </button>
+                                        )}
+                                        {order.status === 'ENVIADO' && order.shippingProofUrl && (
+                                            <button onClick={() => handleImageClick(`http://localhost:3000${order.shippingProofUrl}`)} className="text-green-600 hover:underline">
+                                                Ver Comprobante de Envío
+                                            </button>
+                                        )}
+                                    </div>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <select
                                         value={order.status}
-                                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                        onChange={(e) => handleStatusChange(order.id, e.target.value, order.status)}
                                         className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                                     >
-                                        <option>PENDING_PAYMENT</option>
-                                        <option>PENDING_VERIFICATION</option>
-                                        <option>PAID</option>
-                                        <option>SHIPPED</option>
-                                        <option>DELIVERED</option>
-                                        <option>CANCELED</option>
+                                        {Object.entries(statusTranslations).map(([key, value]) => (
+                                          <option key={key} value={key}>{value}</option>
+                                        ))}
                                     </select>
                                 </td>
                             </tr>
@@ -175,6 +205,20 @@ const AdminPage: React.FC = () => {
                     Siguiente
                 </button>
             </div>
+            <ShippingProofUploadModal 
+                isOpen={isShippingProofModalOpen}
+                onClose={() => setIsShippingProofModalOpen(false)}
+                orderId={orderToShipId}
+                onUploadSuccess={() => {
+                    fetchAllOrders(); // Refetch orders to update status
+                    setOrderToShipId(null);
+                }}
+            />
+            <ImageModal 
+                isOpen={isImageModalOpen}
+                onClose={() => setIsImageModalOpen(false)}
+                imageUrl={selectedImageUrl}
+            />
         </div>
     );
 };

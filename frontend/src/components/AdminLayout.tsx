@@ -1,20 +1,27 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../app/hooks';
 import { logout } from '../features/auth/authSlice';
 import toast from 'react-hot-toast';
 import { FaSignOutAlt, FaStore } from 'react-icons/fa';
+import ConfirmationModal from './ConfirmationModal';
 
 const AdminLayout: React.FC = () => {
     const activeLinkClass = "bg-gray-700 text-white";
     const inactiveLinkClass = "text-gray-300 hover:bg-gray-700 hover:text-white";
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
     const handleLogout = () => {
+        setIsLogoutModalOpen(true);
+    };
+
+    const confirmLogout = () => {
         dispatch(logout());
-        toast.success('Sesión cerrada.');
-        navigate('/login');
+        toast.success('Has cerrado sesión exitosamente.');
+        navigate('/login', { state: { fromLogout: true } });
+        setIsLogoutModalOpen(false);
     };
 
     return (
@@ -64,6 +71,13 @@ const AdminLayout: React.FC = () => {
             <main className="flex-grow bg-gray-100 min-h-screen">
                 <Outlet />
             </main>
+            <ConfirmationModal 
+                isOpen={isLogoutModalOpen}
+                onClose={() => setIsLogoutModalOpen(false)}
+                onConfirm={confirmLogout}
+                title="Confirmar Cierre de Sesión"
+                message="¿Estás seguro de que quieres cerrar sesión?"
+            />
         </div>
     );
 };

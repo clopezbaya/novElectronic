@@ -15,8 +15,9 @@ model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   name      String?
-  password  String
+  password  String?
   role      String   @default("USER") // USER or ADMIN
+  googleId  String?  @unique // Add googleId field
   orders    Order[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -29,9 +30,10 @@ model Order {
   subtotal          Float       @default(0)
   shippingCost      Float       @default(0)
   total             Float
-  status            String      @default("PENDING_PAYMENT") // PENDING_PAYMENT, PENDING_VERIFICATION, PAID, SHIPPED, DELIVERED, CANCELED
+  status            String      @default("PENDIENTE_PAGO") // PENDIENTE_PAGO, PENDIENTE_VERIFICACION, PAGO_RECHAZADO, PAGADO, ENVIADO, ENTREGADO, CANCELADO
   shippingAddress   Json?
   proofOfPaymentUrl String?
+  shippingProofUrl  String?
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
   orderItems        OrderItem[]

@@ -4,17 +4,27 @@ import customFetch from '../api/customFetch';
 import toast from 'react-hot-toast';
 import { useAppDispatch } from '../app/hooks';
 import { loginSuccess } from '../features/auth/authSlice';
+import { FaGoogle } from 'react-icons/fa';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+
+  const handleInputChange = (setter: React.Dispatch<React.SetStateAction<string>>) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setter(e.target.value);
+    if (error) {
+      setError('');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     try {
       const response = await customFetch.post('/auth/login', { email, password });
       const { token, user } = response.data;
@@ -23,10 +33,14 @@ const LoginPage: React.FC = () => {
       navigate('/');
     } catch (error: any) {
       console.error('Error durante el login:', error);
-      toast.error(error.response?.data?.message || 'Error al iniciar sesión. Verifica tus credenciales.');
+      setError(error.response?.data?.message || 'Error al iniciar sesión. Verifica tus credenciales.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGoogleLogin = () => {
+    window.location.href = 'http://localhost:3000/auth/google'; // Redirect to backend Google OAuth initiation
   };
 
   const inputContainerClass = "relative";
@@ -47,7 +61,7 @@ const LoginPage: React.FC = () => {
               type="email"
               id="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={handleInputChange(setEmail)}
               className={inputClass}
               placeholder=" "
               required
@@ -59,12 +73,13 @@ const LoginPage: React.FC = () => {
               type="password"
               id="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={handleInputChange(setPassword)}
               className={inputClass}
               placeholder=" "
               required
             />
             <label htmlFor="password" className={labelClass}>Contraseña</label>
+            {error && <p className="text-red-600 text-xs mt-1 absolute">{error}</p>}
           </div>
           <button
             type="submit"
@@ -75,9 +90,23 @@ const LoginPage: React.FC = () => {
           </button>
         </form>
 
+        <div className="relative flex py-3 items-center">
+            <div className="flex-grow border-t border-gray-400"></div>
+            <span className="flex-shrink mx-4 text-gray-500">O</span>
+            <div className="flex-grow border-t border-gray-400"></div>
+        </div>
+
+        <button
+            onClick={handleGoogleLogin}
+            className="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-300 disabled:opacity-50"
+            disabled={loading}
+        >
+            <FaGoogle className="mr-2 text-google-blue" /> Continuar con Google
+        </button>
+
         <div className="text-base text-center">
           <p className="text-gray-600">¿No tienes una cuenta?{' '}
-            <Link to="/register" className="font-medium text-gray-900 hover:text-gray-700">Regístrate</Link>
+            <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">Regístrate</Link>
           </p>
         </div>
       </div>

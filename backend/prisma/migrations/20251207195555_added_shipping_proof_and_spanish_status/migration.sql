@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE `order` ADD COLUMN `shippingProofUrl` VARCHAR(191) NULL,
+    MODIFY `status` VARCHAR(191) NOT NULL DEFAULT 'PENDIENTE_PAGO';

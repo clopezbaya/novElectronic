@@ -7,6 +7,9 @@ const scrapeProducts = require('./externalProductService');
 const { PrismaClient } = require('./generated/prisma');
 const multer = require('multer');
 const path = require('path');
+const passport = require('passport'); // Import passport
+const GoogleStrategy = require('passport-google-oauth20').Strategy; // Import Google Strategy
+const session = require('express-session'); // Import express-session
 
 dotenv.config();
 
@@ -16,7 +19,7 @@ const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
 
 // --- Multer Configuration ---
-const storage = multer.diskStorage({
+const proofOfPaymentStorage = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, './uploads/proofs/');
     },
@@ -25,7 +28,17 @@ const storage = multer.diskStorage({
     }
 });
 
-const upload = multer({ storage: storage });
+const shippingProofStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, './uploads/shipping-proofs/');
+    },
+    filename: function (req, file, cb) {
+        cb(null, 'shipping-' + Date.now() + path.extname(file.originalname)); // Append extension
+    }
+});
+
+const uploadProofOfPayment = multer({ storage: proofOfPaymentStorage });
+const uploadShippingProof = multer({ storage: shippingProofStorage });
 
 app.use(express.json());
 app.use(
@@ -35,6 +48,79 @@ app.use(
     })
 );
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// --- Session Middleware ---
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'fallback_session_secret', // Use SESSION_SECRET from .env
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+}));
+
+// --- Passport Configuration for Google OAuth ---
+passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: process.env.GOOGLE_CALLBACK_URL
+  },
+  async (accessToken, refreshToken, profile, done) => {
+    try {
+      let user = await prisma.user.findUnique({
+        where: { googleId: profile.id }
+      });
+
+      if (!user) {
+        // Check if a user with the same email already exists (e.g., registered via email/password)
+        user = await prisma.user.findUnique({
+          where: { email: profile.emails[0].value }
+        });
+
+        if (user) {
+          // Link the existing user account with GoogleId
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: { googleId: profile.id }
+          });
+        } else {
+          // Create a new user
+          user = await prisma.user.create({
+            data: {
+              email: profile.emails[0].value,
+              name: profile.displayName,
+              googleId: profile.id,
+              // Password field is now optional in schema.prisma, so no need to generate a dummy password
+            }
+          });
+        }
+      }
+      return done(null, user);
+    } catch (error) {
+      return done(error, null);
+    }
+  }
+));
+
+// Serialize and Deserialize User for session management (required by Passport for initial OAuth flow)
+passport.serializeUser((user, done) => {
+    done(null, user.id); // Store only the user ID in the session
+});
+
+passport.deserializeUser(async (id, done) => {
+    try {
+        const user = await prisma.user.findUnique({ where: { id: parseInt(id) } });
+        done(null, user);
+    } catch (error) {
+        done(error, null);
+    }
+});
+
+
+app.use(passport.initialize()); // Initialize passport
+app.use(passport.session()); // Use passport session middleware
 
 
 // --- Middlewares ---
@@ -118,10 +204,19 @@ app.get('/', (req, res) => {
     res.send('Hello World!');
 });
 
-// --- Endpoints de Autenticación ---
+// --- Endpoints de Autenticación Tradicional ---
 app.post('/api/auth/register', async (req, res) => {
     const { email, password, name } = req.body;
     try {
+        // Check if a user with this email already exists via Google
+        const existingUser = await prisma.user.findUnique({ where: { email } });
+        if (existingUser && existingUser.googleId) {
+            return res.status(409).json({ message: 'Este correo electrónico ya está registrado con Google. Inicia sesión con Google.' });
+        }
+        if (existingUser) {
+            return res.status(409).json({ message: 'El correo electrónico ya está registrado.' });
+        }
+
         const hashedPassword = await bcrypt.hash(password, 10);
         const user = await prisma.user.create({
             data: {
@@ -153,6 +248,12 @@ app.post('/api/auth/login', async (req, res) => {
             return res.status(400).json({ message: 'Credenciales inválidas.' });
         }
 
+        // If user registered via Google, prompt them to use Google login
+        if (user.googleId && !user.password) {
+          return res.status(400).json({ message: 'Has iniciado sesión con Google anteriormente. Por favor, usa el botón de Google para iniciar sesión.' });
+        }
+        
+        // If user has a password (either traditional or linked Google account)
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
             return res.status(400).json({ message: 'Credenciales inválidas.' });
@@ -169,6 +270,19 @@ app.post('/api/auth/login', async (req, res) => {
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
 });
+
+// --- Google OAuth Routes ---
+app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+app.get('/auth/google/callback', 
+  passport.authenticate('google', { failureRedirect: process.env.FRONTEND_URL + '/login?error=google_auth_failed' }),
+  (req, res) => {
+    // Successful authentication, generate JWT and redirect
+    const user = req.user; // User object is attached to req.user by Passport
+    const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
+    res.redirect(`${process.env.FRONTEND_URL}/auth/google/success?token=${token}`);
+  }
+);
 
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
     try {
@@ -325,7 +439,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
     }
 });
 
-app.post('/api/orders/:id/upload-proof', authenticateToken, upload.single('proof'), async (req, res) => {
+app.post('/api/orders/:id/upload-proof', authenticateToken, uploadProofOfPayment.single('proof'), async (req, res) => {
     const { id } = req.params;
     const orderId = parseInt(id);
 
@@ -390,6 +504,7 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
             status: order.status,
             createdAt: order.createdAt,
             proofOfPaymentUrl: order.proofOfPaymentUrl,
+            shippingProofUrl: order.shippingProofUrl,
             orderItems: order.orderItems.map((item) => ({
                 quantity: item.quantity,
                 price: item.price,
@@ -447,6 +562,7 @@ app.get('/api/admin/orders', authenticateToken, isAdmin, async (req, res) => {
                 ...order,
                 shippingAddress: order.shippingAddress,
                 proofOfPaymentUrl: order.proofOfPaymentUrl,
+                shippingProofUrl: order.shippingProofUrl,
                 subtotal: order.subtotal,
                 shippingCost: order.shippingCost,
             })),
@@ -508,6 +624,51 @@ app.put(
         }
     }
 );
+
+app.post(
+    '/api/admin/orders/:id/ship',
+    authenticateToken,
+    isAdmin,
+    uploadShippingProof.single('shippingProof'),
+    async (req, res) => {
+        const { id } = req.params;
+        const orderId = parseInt(id);
+
+        try {
+            const order = await prisma.order.findUnique({
+                where: { id: orderId },
+            });
+
+            if (!order) {
+                return res.status(404).json({ message: 'Pedido no encontrado.' });
+            }
+
+            if (!req.file) {
+                return res.status(400).json({ message: 'No se subió ningún archivo.' });
+            }
+
+            const shippingProofUrl = `/uploads/shipping-proofs/${req.file.filename}`;
+
+            const updatedOrder = await prisma.order.update({
+                where: { id: orderId },
+                data: {
+                    shippingProofUrl: shippingProofUrl,
+                    status: 'ENVIADO',
+                },
+            });
+
+            res.json({
+                message: 'Comprobante de envío subido y estado actualizado a "Enviado".',
+                order: updatedOrder,
+            });
+        } catch (error) {
+            console.error('Error al subir el comprobante de envío:', error);
+            console.log(error);
+            res.status(500).json({ message: 'Error interno del servidor.' });
+        }
+    }
+);
+
 
 // --- Admin Product Endpoints ---
 app.get('/api/admin/products', authenticateToken, isAdmin, async (req, res) => {
@@ -603,6 +764,9 @@ app.post(
             });
             res.status(201).json(newProduct);
         } catch (error) {
+            if (error.code === 'P2002') {
+                return res.status(409).json({ message: 'A product with this source URL already exists.' });
+            }
             res.status(500).json({ message: 'Error creating product' });
         }
     }
@@ -806,8 +970,8 @@ app.get('/api/products/:id', async (req, res) => {
                 price: product.resalePrice,
                 currency: 'Bs',
                 popularity: 0,
-                stock: product.stock,
-                description: product.description,
+                stock: p.stock,
+                description: p.description,
             };
             res.json(formattedProduct);
         } else {
