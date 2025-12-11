@@ -13,7 +13,6 @@ const scrapeProducts = async (prisma) => {
     });
     console.log('[SCRAPER] Navegador Puppeteer iniciado.');
 
-    // Create default categories if they don't exist
     const defaultCategories = ['Electronicos', 'Salud'];
     for (const catName of defaultCategories) {
         await prisma.category.upsert({
@@ -25,7 +24,6 @@ const scrapeProducts = async (prisma) => {
     console.log('[SCRAPER] Categorías por defecto aseguradas en la DB.');
     const electronicsCategory = await prisma.category.findUnique({ where: { name: 'Electronicos' } });
 
-    // Selectors from .env
     const productItemSelector = process.env.SCRAPE_PRODUCT_ITEM_SELECTOR;
     const productNameSelector = process.env.SCRAPE_PRODUCT_NAME_SELECTOR;
     const productPriceSelector = process.env.SCRAPE_PRODUCT_PRICE_SELECTOR;
@@ -33,13 +31,12 @@ const scrapeProducts = async (prisma) => {
     const productLinkSelector = process.env.SCRAPE_PRODUCT_LINK_SELECTOR;
     const productDescriptionSelector = process.env.SCRAPE_PRODUCT_DESCRIPTION_SELECTOR;
     const productStockSelector = process.env.SCRAPE_PRODUCT_STOCK_SELECTOR;
-    const productIdSelector = process.env.SCRAPE_PRODUCT_ID; // Using the ID selector from .env
+    const productIdSelector = process.env.SCRAPE_PRODUCT_ID;
     const concurrencyLimit = parseInt(process.env.CONCURRENCY_LIMIT || '5', 10);
 
     let page;
     try {
         page = await browser.newPage();
-        // Increase navigation timeout
         await page.setDefaultNavigationTimeout(60000); 
 
         console.log('[SCRAPER] Navegando a la página de login...');
@@ -65,11 +62,9 @@ const scrapeProducts = async (prisma) => {
                 const scraped = [];
 
                 items.forEach((el) => {
-                    // Use the dedicated selector for the product ID (SKU)
                     const idElement = el.querySelector(idSel);
                     let id = idElement ? idElement.innerText.split(':')[1]?.trim() : null;
-
-                    if (!id) return; // Skip product if no ID is found
+                    if (!id) return;
 
                     const nameElement = el.querySelector(nameSel);
                     const name = nameElement?.innerText.trim() || 'N/A';
@@ -91,17 +86,16 @@ const scrapeProducts = async (prisma) => {
                     const imageUrl = el.querySelector(listingImageSel)?.src || 'https://via.placeholder.com/150';
 
                     scraped.push({
-                        id, // Using the new reliable ID
+                        id,
                         name,
                         originalPrice,
                         imageUrl,
                         productUrl,
                         brandName,
-                        category: 'Electronics', // Hardcoded for now
+                        category: 'Electronics',
                         stock,
                     });
                 });
-
                 return scraped;
             },
             productItemSelector,
@@ -110,10 +104,9 @@ const scrapeProducts = async (prisma) => {
             listingImageSelector,
             productLinkSelector,
             productStockSelector,
-            productIdSelector // Pass the new selector to page.evaluate
+            productIdSelector
         );
         console.log(`[SCRAPER] Raspeo básico completado. ${products.length} productos encontrados.`);
-
         await page.close();
 
         const productChunks = [];
@@ -127,7 +120,7 @@ const scrapeProducts = async (prisma) => {
                 let productPage;
                 try {
                     productPage = await browser.newPage();
-                    await productPage.setDefaultNavigationTimeout(60000); // Set timeout for each product page
+                    await productPage.setDefaultNavigationTimeout(60000);
                     
                     if (product.productUrl === '#') {
                         console.warn(`[SCRAPER] URL inválida para el producto ${product.name}, saltando.`);
@@ -135,14 +128,28 @@ const scrapeProducts = async (prisma) => {
                     }
                     
                     await productPage.goto(product.productUrl, { waitUntil: 'domcontentloaded' });
-                    await productPage.waitForSelector(productDescriptionSelector, { timeout: 15000 }).catch(() => {
-                        console.warn(`[SCRAPER] Selector de descripción no encontrado para ${product.name}, usando descripción por defecto.`);
-                    });
 
-                    const description = await productPage.evaluate((selector) => {
-                        const el = document.querySelector(selector);
-                        return el ? el.innerText.trim() : 'No hay descripción disponible.';
-                    }, productDescriptionSelector);
+                    const descriptionSelectors = [
+                        productDescriptionSelector, // Original selector from .env
+                        'div.product-description',
+                        'div.description',
+                        'div[itemprop="description"]'
+                    ];
+                    
+                    // Wait for at least one of the selectors to be available
+                    await Promise.any(descriptionSelectors.map(sel => productPage.waitForSelector(sel, { timeout: 10000 })))
+                        .catch(() => console.warn(`[SCRAPER] Ningún selector de descripción encontrado para ${product.name}, usando descripción por defecto.`));
+
+                    const description = await productPage.evaluate((selectors) => {
+                        for (const selector of selectors) {
+                            const el = document.querySelector(selector);
+                            if (el && el.innerText.trim()) {
+                                return el.innerText.trim();
+                            }
+                        }
+                        return 'No hay descripción disponible.';
+                    }, descriptionSelectors);
+
 
                     const additionalImageUrls = await productPage.evaluate((detailSel) => {
                         const images = Array.from(document.querySelectorAll(detailSel));
