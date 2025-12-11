@@ -1,23 +1,7 @@
-import { useDispatch, useSelector } from 'react-redux';
-import { useState, useEffect } from 'react'; // Import useState and useEffect from react
+// frontend/src/app/hooks.ts
+import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
 import type { RootState, AppDispatch } from './store';
 
-// Use throughout your app instead of plain `useDispatch` and `useSelector`
+// Úsalos en toda tu aplicación en lugar de `useDispatch` y `useSelector` planos
 export const useAppDispatch = () => useDispatch<AppDispatch>();
-export const useAppSelector = useSelector;
-
-export const useDebounce = <T>(value: T, delay: number): T => {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-};
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
