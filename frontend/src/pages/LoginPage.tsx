@@ -40,7 +40,7 @@ const LoginPage: React.FC = () => {
   };
 
   const handleGoogleLogin = () => {
-    window.location.href = 'http://localhost:3000/auth/google'; // Redirect to backend Google OAuth initiation
+    window.location.href = `${import.meta.env.VITE_API_URL}/auth/google`; // Redirect to backend Google OAuth initiation
   };
 
   const inputContainerClass = "relative";

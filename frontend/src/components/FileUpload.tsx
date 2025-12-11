@@ -68,7 +68,7 @@ const FileUpload: React.FC<FileUploadProps> = ({ orderId, onUploadSuccess, exist
                                 ? previewUrl
                                 : previewUrl.includes('firebasestorage.app')
                                     ? previewUrl
-                                    : `http://localhost:3000${previewUrl}`
+                                    : `${import.meta.env.VITE_API_URL}${previewUrl}`
                         }
                         alt="Preview"
                         className="max-h-48 rounded-lg mx-auto"
