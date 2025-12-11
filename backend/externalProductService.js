@@ -105,8 +105,9 @@ const scrapeProducts = async (prisma) => {
                 const scraped = [];
 
                 items.forEach((el) => {
-                    const name =
-                        el.querySelector(nameSel)?.innerText.trim() || 'N/A';
+                    const nameElement = el.querySelector(nameSel);
+                    const name = nameElement?.innerText.trim() || 'N/A';
+                    
                     const priceWholeElement = el.querySelector(priceSel);
                     const priceText =
                         priceWholeElement?.firstChild?.nodeValue?.trim() || '0';
@@ -114,7 +115,7 @@ const scrapeProducts = async (prisma) => {
                         priceText.replace(/,/g, '')
                     );
 
-                    const productUrl = el.querySelector(linkSel)?.href || '#';
+                    const productUrl = nameElement?.href || '#';
 
                     const urlParts = productUrl.split('?');
                     const rawId = urlParts.length > 1 ? urlParts[1] : '';
