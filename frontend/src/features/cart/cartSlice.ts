@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction, nanoid } from '@reduxjs/toolkit';
 
-interface CartItem {
+export interface CartItem {
   id: string;
   productId: string; // Original product ID
   title: string;
@@ -9,6 +9,7 @@ interface CartItem {
   price: number;
   currency: string;
   quantity: number;
+  popularity: number; // Added popularity
 }
 
 interface CartState {
