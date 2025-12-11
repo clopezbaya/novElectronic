@@ -40,7 +40,7 @@ interface Order {
 
 const AdminPage: React.FC = () => {
     const navigate = useNavigate();
-    const { user, token, isAuthenticated } = useAppSelector((state: any) => state.auth);
+    const { token, isAuthenticated } = useAppSelector((state: any) => state.auth);
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);

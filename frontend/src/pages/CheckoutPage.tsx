@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppSelector, useAppDispatch } from '../app/hooks';
+import type { RootState } from '../app/store'; // Import RootState for proper typing
+import type { CartItem } from '../features/cart/cartSlice'; // Import CartItem type
 import { formatPrice } from '../utils/formatPrice';
 import { Link, useNavigate } from 'react-router-dom';
 import customFetch from '../api/customFetch';
@@ -13,8 +15,9 @@ const bolivianDepartments = [
 
 const CheckoutPage: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { cartTotal, cartItems } = useAppSelector((state: any) => state.cart);
-  const { isAuthenticated, token } = useAppSelector((state: any) => state.auth);
+  // Use RootState for proper state typing
+  const { cartTotal, cartItems } = useAppSelector((state: RootState) => state.cart);
+  const { isAuthenticated, token } = useAppSelector((state: RootState) => state.auth);
   const navigate = useNavigate();
 
   const [shippingInfo, setShippingInfo] = useState({
@@ -28,7 +31,7 @@ const CheckoutPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(false);
 
-  const shippingCost = shippingInfo.city === 'Cochabamba' ? 0 : 20;
+  const shippingCost = shippingInfo.city === 'Santa Cruz' ? 15 : 25; // Adjusted shipping cost
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -58,7 +61,8 @@ const CheckoutPage: React.FC = () => {
     setLoading(true);
     try {
         const orderData = {
-            orderItems: cartItems.map(item => ({
+            // Add type annotation to item
+            orderItems: cartItems.map((item: CartItem) => ({
                 productId: item.productId,
                 quantity: item.quantity,
                 price: item.price,
@@ -244,7 +248,8 @@ const CheckoutPage: React.FC = () => {
               <div className="mt-6 rounded-lg border border-gray-200 bg-white shadow-sm">
                 <h3 className="sr-only">Artículos en tu carrito</h3>
                 <ul role="list" className="divide-y divide-gray-200">
-                  {cartItems.map((product:any) => (
+                  {/* Add type annotation to product here */}
+                  {cartItems.map((product: CartItem) => (
                     <li key={product.id} className="flex px-4 py-6 sm:px-6">
                       <div className="flex-shrink-0">
                         <img src={product.image} alt={product.title} className="w-24 rounded-md" />
@@ -288,9 +293,12 @@ const CheckoutPage: React.FC = () => {
                 <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
                   <button
                     type="submit"
-                    className="w-full rounded-lg border border-transparent bg-gray-900 px-4 py-3 text-lg font-medium text-white shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 focus:ring-offset-gray-50"
+                    disabled={loading} // Use the loading state here
+                    className={`w-full rounded-lg border border-transparent px-4 py-3 text-lg font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-50 transition-colors ${
+                        loading ? 'bg-gray-500 cursor-not-allowed' : 'bg-gray-900 hover:bg-gray-700 focus:ring-gray-900'
+                    }`}
                   >
-                    Confirmar pedido
+                    {loading ? 'Procesando...' : 'Confirmar pedido'}
                   </button>
                 </div>
               </div>

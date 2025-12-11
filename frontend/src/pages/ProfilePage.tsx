@@ -4,7 +4,7 @@ import { setUser } from '../features/auth/authSlice';
 import customFetch from '../api/customFetch';
 import toast from 'react-hot-toast';
 import { useNavigate, useLocation } from 'react-router-dom'; // Import useLocation
-import { FaUserCircle, FaEdit, FaKey, FaTimes } from 'react-icons/fa';
+import { FaUserCircle, FaEdit, FaKey } from 'react-icons/fa';
 import PasswordStrengthIndicator from '../components/PasswordStrengthIndicator';
 
 const ProfilePage: React.FC = () => {
@@ -166,7 +166,7 @@ const ProfilePage: React.FC = () => {
                                 </div>
                                 <div className="flex justify-end space-x-4">
                                     <button type="button" onClick={() => setIsChangingPassword(false)} className="px-6 py-2 rounded-lg text-gray-800 bg-gray-200 hover:bg-gray-300">Cancelar</button>
-                                    <button type="submit" className="px-6 py-2 rounded-lg text-white bg-gray-900 hover:bg-gray-700" disabled={passwordError || confirmPasswordError}>Cambiar Contraseña</button>
+                                    <button type="submit" className="px-6 py-2 rounded-lg text-white bg-gray-900 hover:bg-gray-700" disabled={passwordError !== '' || confirmPasswordError !== ''}>Cambiar Contraseña</button>
                                 </div>
                             </form>
                          )}

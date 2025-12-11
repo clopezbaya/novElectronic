@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { useAppDispatch, useAppSelector, useDebounce } from '../app/hooks';
 import customFetch from '../api/customFetch';
 import { setProducts, addProducts, setLoading, setError } from '../features/products/productSlice';
