@@ -9,7 +9,8 @@ export interface CartItem {
   price: number;
   currency: string;
   quantity: number;
-  popularity: number; // Added popularity
+  popularity: number;
+  stock: number; // Added stock
 }
 
 interface CartState {
