@@ -14,30 +14,13 @@ const session = require('express-session'); // Import express-session
 // --- Firebase Admin SDK Initialization ---
 const admin = require("firebase-admin");
 
-// Determine if we are in production or development
-const isProduction = process.env.NODE_ENV === 'production';
-
 let serviceAccount;
-if (isProduction) {
-    // In production, get the service account key from an environment variable
-    if (!process.env.FIREBASE_ADMIN_CREDENTIALS) {
-        console.error("FIREBASE_ADMIN_CREDENTIALS environment variable is not set in production.");
-        process.exit(1); // Exit if critical credential is missing
-    }
-    try {
-        serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_CREDENTIALS);
-    } catch (error) {
-        console.error("Failed to parse FIREBASE_ADMIN_CREDENTIALS environment variable:", error);
-        process.exit(1);
-    }
-} else {
-    // In development, load the service account key from the local file
-    try {
-        serviceAccount = require("./serviceAccountKey.json");
-    } catch (error) {
-        console.error("serviceAccountKey.json not found. Please ensure it's in the backend root for development.");
-        process.exit(1);
-    }
+try {
+    // This will work locally and in Render (via Secret File)
+    serviceAccount = require("./serviceAccountKey.json");
+} catch (error) {
+    console.error("Could not load serviceAccountKey.json. Ensure the file exists locally or is set as a Secret File in production.", error);
+    process.exit(1);
 }
 
 admin.initializeApp({
