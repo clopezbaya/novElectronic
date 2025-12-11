@@ -53,18 +53,18 @@ const HomePage: React.FC = () => {
     setPage(prevPage => prevPage + 1);
   };
 
-  if (isLoading && page === 1) {
-    return (
-        <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
-            <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse"></div>
-                <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                <p className="text-2xl text-gray-700 ml-4 mt-4">Cargando...</p>
+    if (isLoading && page === 1 && !debouncedSearch) {
+        return (
+            <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
+                <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse"></div>
+                    <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                    <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                    <p className="text-2xl text-gray-700 ml-4 mt-4">Cargando...</p>
+                </div>
             </div>
-        </div>
-    );
-  }
+        );
+    }
 
   if (error) {
     return (
@@ -96,13 +96,20 @@ const HomePage: React.FC = () => {
                 Descubre nuestra nueva colección de productos. Tenemos algo para todos.
                 </p>
             </div>
-            <input
-                type="text"
-                placeholder="Buscar en todos los productos..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-1/3 p-2 border border-gray-300 rounded-md"
-            />
+            <div className="relative w-1/3">
+                <input
+                    type="text"
+                    placeholder="Buscar en todos los productos..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                />
+                {isLoading && (
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                        <div className="w-5 h-5 border-t-2 border-b-2 border-gray-900 rounded-full animate-spin"></div>
+                    </div>
+                )}
+            </div>
         </div>
 
         <div className="mt-6">

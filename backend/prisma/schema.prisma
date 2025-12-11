@@ -11,6 +11,44 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  password  String?
+  role      String   @default("USER") // USER or ADMIN
+  googleId  String?  @unique // Add googleId field
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id                Int         @id @default(autoincrement())
+  userId            Int
+  user              User        @relation(fields: [userId], references: [id])
+  subtotal          Float       @default(0)
+  shippingCost      Float       @default(0)
+  total             Float
+  status            String      @default("PENDIENTE_PAGO") // PENDIENTE_PAGO, PENDIENTE_VERIFICACION, PAGO_RECHAZADO, PAGADO, ENVIADO, ENTREGADO, CANCELADO
+  shippingAddress   Json?
+  proofOfPaymentUrl String?
+  shippingProofUrl  String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  orderItems        OrderItem[]
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  orderId   Int
+  order     Order    @relation(fields: [orderId], references: [id])
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float
+}
+
 model Brand {
   id        Int      @id @default(autoincrement())
   name      String   @unique
@@ -24,17 +62,28 @@ model Category {
 }
 
 model Product {
-  id            String     @id @unique
+  id            String         @id @unique
   brandId       Int
-  brand         Brand      @relation(fields: [brandId], references: [id])
+  brand         Brand          @relation(fields: [brandId], references: [id])
   name          String
   description   String?
   originalPrice Float
   resalePrice   Float
-  imageUrl      String
-  sourceUrl     String     @unique
-  stock         Int        @default(0)
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  // imageUrl      String // Removed
+  sourceUrl     String         @unique
+  stock         Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   categories    Category[]
+  orderItems    OrderItem[]
+  images        ProductImage[] // New relation to ProductImage
+}
+
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  url       String   @db.VarChar(500) // Store the image URL
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade) // On Product deletion, also delete related images
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

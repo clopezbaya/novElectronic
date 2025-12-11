@@ -1,4 +1,4 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, type PayloadAction, nanoid } from '@reduxjs/toolkit';
 
 interface CartItem {
   id: string;
@@ -26,14 +26,15 @@ const cartSlice = createSlice({
   name: 'cart',
   initialState,
   reducers: {
-    addItem: (state, action: PayloadAction<CartItem>) => {
-      const { id, quantity } = action.payload;
-      const item = state.cartItems.find((i) => i.id === id);
+    addItem: (state, action: PayloadAction<Omit<CartItem, 'id'>>) => {
+      const { productId, quantity } = action.payload;
+      const item = state.cartItems.find((i) => i.productId === productId);
 
       if (item) {
         item.quantity += quantity;
       } else {
-        state.cartItems.push(action.payload);
+        const newItem = { ...action.payload, id: nanoid() };
+        state.cartItems.push(newItem);
       }
       cartSlice.caseReducers.calculateTotals(state);
     },
