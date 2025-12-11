@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAppSelector, useAppDispatch } from '../app/hooks';
+import type { RootState } from '../app/store';
 import { removeItem, editItem, clearCart } from '../features/cart/cartSlice';
 import { formatPrice } from '../utils/formatPrice';
 import { Link } from 'react-router-dom';
@@ -9,7 +10,7 @@ import Breadcrumbs from '../components/Breadcrumbs';
 
 const CartPage: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { cartItems, cartTotal, numItemsInCart } = useAppSelector((state: any) => state.cart);
+  const { cartItems, cartTotal } = useAppSelector((state: RootState) => state.cart);
 
   const handleRemoveItem = (id: string) => {
     dispatch(removeItem(id));
