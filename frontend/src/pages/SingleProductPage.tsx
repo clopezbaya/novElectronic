@@ -10,13 +10,13 @@ import { useNavigate } from 'react-router-dom';
 interface Product {
   id: string;
   title: string;
-  image: string;
+  images: string[]; // Changed from image: string
   categories: string[];
   price: number;
   currency: string;
   popularity: number;
   stock: number;
-  description?: string; // Added description field
+  description?: string;
 }
 
 const SingleProductPage: React.FC = () => {
@@ -27,6 +27,7 @@ const SingleProductPage: React.FC = () => {
   const [quantity, setQuantity] = useState(1);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const [mainImage, setMainImage] = useState<string | undefined>(undefined); // New state for the main displayed image
 
   const categoryTranslations: { [key: string]: string } = {
     "Electronics": "Electrónica",
@@ -46,7 +47,9 @@ const SingleProductPage: React.FC = () => {
       setError(null);
       try {
         const response = await customFetch.get(`/products/${id}`);
-        setProduct(response.data);
+        const fetchedProduct = response.data;
+        setProduct(fetchedProduct);
+        setMainImage(fetchedProduct.images[0] || undefined); // Set initial main image
       } catch (err: any) {
         console.error('Error fetching single product:', err);
         setError('Fallo al cargar los detalles del producto.');
@@ -73,7 +76,7 @@ const SingleProductPage: React.FC = () => {
         addItem({
           productId: product.id,
           title: product.title,
-          image: product.image,
+          image: product.images[0] || 'https://via.placeholder.com/150', // Use first image from array
           price: product.price,
           currency: product.currency,
           quantity,
@@ -100,7 +103,7 @@ const SingleProductPage: React.FC = () => {
         addItem({
           productId: product.id,
           title: product.title,
-          image: product.image,
+          image: product.images[0] || 'https://via.placeholder.com/150', // Use first image from array
           price: product.price,
           currency: product.currency,
           quantity,
@@ -130,12 +133,48 @@ const SingleProductPage: React.FC = () => {
         <div className="mx-auto max-w-2xl px-4 pb-16 pt-10 sm:px-6 lg:max-w-7xl lg:px-8">
             <div className="lg:grid lg:grid-cols-2 lg:gap-x-8">
                 {/* Image gallery */}
-                <div className="aspect-h-1 aspect-w-1 w-full overflow-hidden rounded-lg">
-                    <img
-                    src={product.image}
-                    alt={product.title}
-                    className="h-full w-full object-contain object-center"
-                    />
+                <div className="lg:col-span-1">
+                    {/* Main image */}
+                    <div className="aspect-h-1 aspect-w-1 w-full overflow-hidden rounded-lg bg-gray-100">
+                        <img
+                            src={mainImage || product.images[0] || 'https://via.placeholder.com/600'}
+                            alt={product.title}
+                            className="h-full w-full object-contain object-center"
+                        />
+                    </div>
+
+                    {/* Image thumbnails */}
+                    {product.images.length > 1 && (
+                        <div className="mt-6 hidden w-full sm:block">
+                            <h3 className="sr-only">Miniaturas de imágenes</h3>
+                            <div className="grid grid-cols-4 gap-6">
+                                {product.images.map((image, index) => (
+                                    <div
+                                        key={index}
+                                        onClick={() => setMainImage(image)}
+                                        className={`group relative flex h-24 cursor-pointer items-center justify-center overflow-hidden rounded-md bg-white border ${
+                                            mainImage === image ? 'border-indigo-500' : 'border-gray-200'
+                                        }`}
+                                    >
+                                        <span className="sr-only">Imagen {index + 1} de {product.title}</span>
+                                        <span className="absolute inset-0 overflow-hidden rounded-md">
+                                            <img
+                                                src={image}
+                                                alt={`Miniatura ${index + 1} de ${product.title}`}
+                                                className="h-full w-full object-contain object-center"
+                                            />
+                                        </span>
+                                        {mainImage !== image && (
+                                            <span
+                                                className="pointer-events-none absolute inset-0 rounded-md ring-2 ring-transparent ring-offset-2"
+                                                aria-hidden="true"
+                                            />
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Product info */}

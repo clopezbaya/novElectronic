@@ -11,6 +11,43 @@ const passport = require('passport'); // Import passport
 const GoogleStrategy = require('passport-google-oauth20').Strategy; // Import Google Strategy
 const session = require('express-session'); // Import express-session
 
+// --- Firebase Admin SDK Initialization ---
+const admin = require("firebase-admin");
+
+// Determine if we are in production or development
+const isProduction = process.env.NODE_ENV === 'production';
+
+let serviceAccount;
+if (isProduction) {
+    // In production, get the service account key from an environment variable
+    if (!process.env.FIREBASE_ADMIN_CREDENTIALS) {
+        console.error("FIREBASE_ADMIN_CREDENTIALS environment variable is not set in production.");
+        process.exit(1); // Exit if critical credential is missing
+    }
+    try {
+        serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_CREDENTIALS);
+    } catch (error) {
+        console.error("Failed to parse FIREBASE_ADMIN_CREDENTIALS environment variable:", error);
+        process.exit(1);
+    }
+} else {
+    // In development, load the service account key from the local file
+    try {
+        serviceAccount = require("./serviceAccountKey.json");
+    } catch (error) {
+        console.error("serviceAccountKey.json not found. Please ensure it's in the backend root for development.");
+        process.exit(1);
+    }
+}
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET // Use environment variable for bucket name
+});
+
+const bucket = admin.storage().bucket();
+// --- End Firebase Admin SDK Initialization ---
+
 dotenv.config();
 
 const app = express();
@@ -18,27 +55,16 @@ const port = process.env.PORT || 3000;
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
 
-// --- Multer Configuration ---
-const proofOfPaymentStorage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, './uploads/proofs/');
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + path.extname(file.originalname)); // Append extension
+// --- Multer Configuration for in-memory storage ---
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 5 * 1024 * 1024 // Limit file size to 5MB
     }
 });
 
-const shippingProofStorage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, './uploads/shipping-proofs/');
-    },
-    filename: function (req, file, cb) {
-        cb(null, 'shipping-' + Date.now() + path.extname(file.originalname)); // Append extension
-    }
-});
-
-const uploadProofOfPayment = multer({ storage: proofOfPaymentStorage });
-const uploadShippingProof = multer({ storage: shippingProofStorage });
+// Remove local uploads folder static serving
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use(express.json());
 app.use(
@@ -47,7 +73,6 @@ app.use(
         credentials: true,
     })
 );
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // --- Session Middleware ---
 app.use(session({
@@ -168,12 +193,18 @@ const updateDatabaseIfNeeded = async () => {
         select: { updatedAt: true },
     });
 
-    const isDatabaseEmpty = (await prisma.product.count()) === 0;
+    const productCount = await prisma.product.count();
+    console.log(`[DB_UPDATE] Product count: ${productCount}`); // Add this log
+    const isDatabaseEmpty = (productCount === 0);
+    console.log(`[DB_UPDATE] isDatabaseEmpty: ${isDatabaseEmpty}`); // Add this log
+
     const isCacheInvalid =
         isDatabaseEmpty ||
         CACHE_DURATION_HOURS === 0 ||
         (lastProductUpdate &&
             now - lastProductUpdate.updatedAt.getTime() >= CACHE_DURATION_MS);
+    console.log(`[DB_UPDATE] isCacheInvalid: ${isCacheInvalid}`); // Add this log
+
 
     if (!isDatabaseEmpty && !isCacheInvalid) {
         console.log(
@@ -406,7 +437,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
                 orderItems: {
                     include: {
                         product: {
-                            select: { name: true, imageUrl: true },
+                            select: { name: true, images: true }, // Select images relation
                         },
                     },
                 },
@@ -424,7 +455,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
                 price: item.price,
                 productId: item.productId,
                 productName: item.product.name,
-                productImage: item.product.imageUrl,
+                productImage: item.product.images[0]?.url || 'https://via.placeholder.com/150', // Use first image from array
             })),
         };
         res.status(201).json({
@@ -439,7 +470,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
     }
 });
 
-app.post('/api/orders/:id/upload-proof', authenticateToken, uploadProofOfPayment.single('proof'), async (req, res) => {
+app.post('/api/orders/:id/upload-proof', authenticateToken, upload.single('proof'), async (req, res) => {
     const { id } = req.params;
     const orderId = parseInt(id);
 
@@ -460,20 +491,43 @@ app.post('/api/orders/:id/upload-proof', authenticateToken, uploadProofOfPayment
             return res.status(400).json({ message: 'No se subió ningún archivo.' });
         }
 
-        const proofUrl = `/uploads/proofs/${req.file.filename}`;
+        const file = req.file;
+        const fileName = `proofs/${orderId}-${Date.now()}-${file.originalname}`; // Unique filename in Firebase Storage
 
-        const updatedOrder = await prisma.order.update({
-            where: { id: orderId },
-            data: { 
-                proofOfPaymentUrl: proofUrl,
-                status: 'PENDING_VERIFICATION'
+        const fileUpload = bucket.file(fileName);
+        const blobStream = fileUpload.createWriteStream({
+            metadata: {
+                contentType: file.mimetype,
             },
         });
 
-        res.json({
-            message: 'Comprobante de pago subido exitosamente.',
-            order: updatedOrder,
+        blobStream.on('error', (err) => {
+            console.error('Error uploading proof to Firebase Storage:', err);
+            res.status(500).json({ message: 'Error al subir el comprobante de pago a Firebase Storage.' });
         });
+
+        blobStream.on('finish', async () => {
+            await fileUpload.makePublic(); // Make the file publicly accessible
+            const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileUpload.name}`;
+
+            console.log('Generated publicUrl for proofOfPayment:', publicUrl); // Add this line
+            const updatedOrder = await prisma.order.update({
+                where: { id: orderId },
+                data: { 
+                    proofOfPaymentUrl: publicUrl,
+                    status: 'PENDING_VERIFICATION'
+                },
+            });
+
+            res.json({
+                message: 'Comprobante de pago subido exitosamente.',
+                order: updatedOrder,
+                url: publicUrl // Return the URL to the frontend
+            });
+        });
+
+        blobStream.end(file.buffer);
+
     } catch (error) {
         console.error('Error al subir el comprobante de pago:', error);
         res.status(500).json({ message: 'Error interno del servidor.' });
@@ -488,7 +542,7 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
                 orderItems: {
                     include: {
                         product: {
-                            select: { name: true, imageUrl: true },
+                            select: { name: true, images: true }, // Select images relation
                         },
                     },
                 },
@@ -510,7 +564,7 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
                 price: item.price,
                 productId: item.productId,
                 productName: item.product.name,
-                productImage: item.product.imageUrl,
+                productImage: item.product.images[0]?.url || 'https://via.placeholder.com/150', // Use first image from array
             })),
         }));
 
@@ -585,7 +639,7 @@ app.get('/api/admin/orders/:id', authenticateToken, isAdmin, async (req, res) =>
                 user: { select: { name: true, email: true } },
                 orderItems: {
                     include: {
-                        product: { select: { name: true, imageUrl: true } },
+                        product: { select: { name: true, images: true } }, // Select images relation
                     },
                 },
             },
@@ -595,7 +649,14 @@ app.get('/api/admin/orders/:id', authenticateToken, isAdmin, async (req, res) =>
             return res.status(404).json({ message: 'Pedido no encontrado.' });
         }
 
-        res.json(order);
+        const formattedOrder = { // Explicitly format the order
+            ...order,
+            orderItems: order.orderItems.map(item => ({
+                ...item,
+                productImage: item.product.images[0]?.url || 'https://via.placeholder.com/150', // Use first image from array
+            }))
+        };
+        res.json(formattedOrder);
     } catch (error) {
         console.error(`Error fetching order #${id}:`, error);
         res.status(500).json({ message: 'Error interno del servidor.' });
@@ -629,7 +690,7 @@ app.post(
     '/api/admin/orders/:id/ship',
     authenticateToken,
     isAdmin,
-    uploadShippingProof.single('shippingProof'),
+    upload.single('shippingProof'), // Use the in-memory multer instance
     async (req, res) => {
         const { id } = req.params;
         const orderId = parseInt(id);
@@ -647,20 +708,44 @@ app.post(
                 return res.status(400).json({ message: 'No se subió ningún archivo.' });
             }
 
-            const shippingProofUrl = `/uploads/shipping-proofs/${req.file.filename}`;
+            const file = req.file;
+            const fileName = `shipping-proofs/${orderId}-${Date.now()}-${file.originalname}`; // Unique filename in Firebase Storage
 
-            const updatedOrder = await prisma.order.update({
-                where: { id: orderId },
-                data: {
-                    shippingProofUrl: shippingProofUrl,
-                    status: 'ENVIADO',
+            const fileUpload = bucket.file(fileName);
+            const blobStream = fileUpload.createWriteStream({
+                metadata: {
+                    contentType: file.mimetype,
                 },
             });
 
-            res.json({
-                message: 'Comprobante de envío subido y estado actualizado a "Enviado".',
-                order: updatedOrder,
+            blobStream.on('error', (err) => {
+                console.error('Error uploading shipping proof to Firebase Storage:', err);
+                res.status(500).json({ message: 'Error al subir el comprobante de envío a Firebase Storage.' });
             });
+
+            blobStream.on('finish', async () => {
+                await fileUpload.makePublic(); // Make the file publicly accessible
+                const publicUrl = `https://storage.googleapis.com/${bucket.name}/${fileUpload.name}`;
+
+                console.log('Generated publicUrl for shippingProof:', publicUrl);
+
+                const updatedOrder = await prisma.order.update({
+                    where: { id: orderId },
+                    data: {
+                        shippingProofUrl: publicUrl,
+                        status: 'ENVIADO',
+                    },
+                });
+
+                res.json({
+                    message: 'Comprobante de envío subido y estado actualizado a "Enviado".',
+                    order: updatedOrder,
+                    url: publicUrl // Return the URL to the frontend
+                });
+            });
+
+            blobStream.end(file.buffer);
+
         } catch (error) {
             console.error('Error al subir el comprobante de envío:', error);
             console.log(error);
@@ -692,13 +777,20 @@ app.get('/api/admin/products', authenticateToken, isAdmin, async (req, res) => {
         });
         const products = await prisma.product.findMany({
             where: whereClause,
-            include: { brand: true, categories: true },
+            include: { brand: true, categories: true, images: true }, // Include images
             skip: skip,
             take: limitNum,
         });
 
+        const formattedProducts = products.map(p => ({
+            ...p,
+            images: p.images.map(img => img.url), // Return all image URLs
+            // Remove 'imageUrl' if still present in `p` directly
+            // imageUrl: undefined
+        }));
+
         res.json({
-            products,
+            products: formattedProducts,
             totalProducts,
             page: pageNum,
             totalPages: Math.ceil(totalProducts / limitNum),
@@ -716,12 +808,20 @@ app.get('/api/admin/products/:id', authenticateToken, isAdmin, async (req, res) 
             include: {
                 brand: true,
                 categories: true,
+                images: true // Include images
             },
         });
         if (!product) {
             return res.status(404).json({ message: 'Producto no encontrado.' });
         }
-        res.json(product);
+
+        const formattedProduct = {
+            ...product,
+            images: product.images.map(img => img.url), // Return all image URLs
+            // Remove 'imageUrl' if still present in `product` directly
+            // imageUrl: undefined
+        };
+        res.json(formattedProduct);
     } catch (error) {
         console.error(`Error fetching product #${id} for admin:`, error);
         res.status(500).json({ message: 'Error interno del servidor.' });
@@ -739,7 +839,8 @@ app.post(
             description,
             originalPrice,
             resalePrice,
-            imageUrl,
+            // imageUrl, // Removed
+            imageUrls, // New: array of image URLs
             sourceUrl,
             stock,
             brandId,
@@ -755,18 +856,26 @@ app.post(
                     description,
                     originalPrice,
                     resalePrice,
-                    imageUrl,
+                    // imageUrl, // Removed
                     sourceUrl,
                     stock,
                     brand: { connect: { id: brandId } },
                     categories: { connect: categoryIds.map((id) => ({ id })) },
+                    images: { // New: create multiple images
+                        create: imageUrls.map(url => ({ url }))
+                    }
                 },
+                include: { images: true } // Include images in the response
             });
-            res.status(201).json(newProduct);
+            res.status(201).json({
+                ...newProduct,
+                images: newProduct.images.map(img => img.url)
+            });
         } catch (error) {
             if (error.code === 'P2002') {
                 return res.status(409).json({ message: 'A product with this source URL already exists.' });
             }
+            console.error('Error creating product:', error);
             res.status(500).json({ message: 'Error creating product' });
         }
     }
@@ -783,7 +892,8 @@ app.put(
             description,
             originalPrice,
             resalePrice,
-            imageUrl,
+            // imageUrl, // Removed
+            imageUrls, // New: array of image URLs
             sourceUrl,
             stock,
             brandId,
@@ -797,15 +907,24 @@ app.put(
                     description,
                     originalPrice,
                     resalePrice,
-                    imageUrl,
+                    // imageUrl, // Removed
                     sourceUrl,
                     stock,
                     brand: { connect: { id: brandId } },
                     categories: { set: categoryIds.map((id) => ({ id })) },
+                    images: { // New: delete existing and create new images
+                        deleteMany: {}, // Delete all existing images
+                        create: imageUrls.map(url => ({ url })) // Create new image entries
+                    }
                 },
+                include: { images: true } // Include images in the response
             });
-            res.json(updatedProduct);
+            res.json({
+                ...updatedProduct,
+                images: updatedProduct.images.map(img => img.url)
+            });
         } catch (error) {
+            console.error('Error updating product:', error);
             res.status(500).json({ message: 'Error updating product' });
         }
     }
@@ -874,7 +993,7 @@ app.get('/api/products', async (req, res) => {
         });
         const products = await prisma.product.findMany({
             where: whereClause,
-            include: { brand: true, categories: true },
+            include: { brand: true, categories: true, images: true }, // Include images
             skip: skip,
             take: limitNum,
         });
@@ -884,7 +1003,8 @@ app.get('/api/products', async (req, res) => {
         const formattedProducts = products.map((p) => ({
             id: p.id,
             title: p.name,
-            image: p.imageUrl,
+            image: p.images[0]?.url || 'https://via.placeholder.com/150', // Use first image or placeholder
+            images: p.images.map(img => img.url), // Return all image URLs
             brand: p.brand.name,
             categories: p.categories.map((c) => c.name),
             price: p.resalePrice,
@@ -954,7 +1074,7 @@ app.get('/api/products/:id', async (req, res) => {
                     gt: 0,
                 },
             },
-            include: { brand: true, categories: true },
+            include: { brand: true, categories: true, images: true }, // Include images
         });
 
         if (product) {
@@ -964,14 +1084,15 @@ app.get('/api/products/:id', async (req, res) => {
             const formattedProduct = {
                 id: product.id,
                 title: product.name,
-                image: product.imageUrl,
+                image: product.images[0]?.url || 'https://via.placeholder.com/150', // Use first image or placeholder
+                images: product.images.map(img => img.url), // Return all image URLs
                 brand: product.brand.name,
                 categories: product.categories.map((c) => c.name),
                 price: product.resalePrice,
                 currency: 'Bs',
                 popularity: 0,
-                stock: p.stock,
-                description: p.description,
+                stock: product.stock,
+                description: product.description,
             };
             res.json(formattedProduct);
         } else {
@@ -1007,7 +1128,7 @@ app.get('/api/products/category/:category', async (req, res) => {
                     },
                 },
             },
-            include: { brand: true, categories: true },
+            include: { brand: true, categories: true, images: true }, // Include images
         });
         console.log(
             `[API] Encontrados ${filteredProducts.length} productos en la categoría '${category}'.`
@@ -1015,7 +1136,8 @@ app.get('/api/products/category/:category', async (req, res) => {
         const formattedProducts = filteredProducts.map((p) => ({
             id: p.id,
             title: p.name,
-            image: p.imageUrl,
+            image: p.images[0]?.url || 'https://via.placeholder.com/150', // Use first image or placeholder
+            images: p.images.map(img => img.url), // Return all image URLs
             brand: p.brand.name,
             categories: p.categories.map((c) => c.name),
             price: p.resalePrice,

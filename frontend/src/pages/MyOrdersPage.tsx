@@ -36,6 +36,18 @@ const MyOrdersPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedImageUrl, setSelectedImageUrl] = useState('');
 
+    // Helper function to get the correct image URL
+    const getImageUrl = (url?: string) => {
+        if (!url) return '';
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            return url; // Already an absolute URL (Firebase, external, etc.)
+        }
+        // If it's a relative path (likely an old local file), return empty string or a placeholder
+        // Since old local files are likely gone, we choose not to display a broken image.
+        // If you want a placeholder, change '' to '/path/to/placeholder-image.png'
+        return '';
+    };
+
     const handleImageClick = (imageUrl: string) => {
         setSelectedImageUrl(imageUrl);
         setIsModalOpen(true);
@@ -151,7 +163,7 @@ const MyOrdersPage: React.FC = () => {
                                         <p>Por favor, verifica tu comprobante y vuelve a subirlo.</p>
                                     </div>
                                 )}
-                                <FileUpload orderId={order.id} onUploadSuccess={fetchOrders} existingProofUrl={order.proofOfPaymentUrl} />
+                                <FileUpload orderId={order.id} onUploadSuccess={fetchOrders} existingProofUrl={getImageUrl(order.proofOfPaymentUrl)} />
                             </>
                         )}
                         
@@ -160,24 +172,22 @@ const MyOrdersPage: React.FC = () => {
                                 {order.proofOfPaymentUrl && (
                                     <div className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200">
                                         <h3 className="font-semibold text-lg mb-2 text-gray-700">Comprobante de Pago</h3>
-                                        <img 
-                                            src={`http://localhost:3000${order.proofOfPaymentUrl}`} 
-                                            alt="Proof of Payment" 
-                                            className="w-full h-auto rounded-lg max-h-64 object-contain cursor-pointer"
-                                            onClick={() => handleImageClick(`http://localhost:3000${order.proofOfPaymentUrl}`)}
-                                        />
-                                    </div>
+                                                                                <img
+                                                                                    src={getImageUrl(order.proofOfPaymentUrl)}
+                                                                                    alt="Proof of Payment"
+                                                                                    className="w-full h-auto rounded-lg max-h-48 object-contain cursor-pointer"
+                                                                                    onClick={() => handleImageClick(getImageUrl(order.proofOfPaymentUrl))}
+                                                                                />                                    </div>
                                 )}
                                 {order.shippingProofUrl && (
                                     <div className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200">
                                         <h3 className="font-semibold text-lg mb-2 text-gray-700">Comprobante de Envío</h3>
-                                        <img 
-                                            src={`http://localhost:3000${order.shippingProofUrl}`} 
-                                            alt="Shipping Proof" 
-                                            className="w-full h-auto rounded-lg max-h-64 object-contain cursor-pointer"
-                                            onClick={() => handleImageClick(`http://localhost:3000${order.shippingProofUrl}`)}
-                                        />
-                                    </div>
+                                                                                <img
+                                                                                    src={getImageUrl(order.shippingProofUrl)}
+                                                                                    alt="Shipping Proof"
+                                                                                    className="w-full h-auto rounded-lg max-h-48 object-contain cursor-pointer"
+                                                                                    onClick={() => handleImageClick(getImageUrl(order.shippingProofUrl))}
+                                                                                />                                    </div>
                                 )}
                             </div>
                         )}

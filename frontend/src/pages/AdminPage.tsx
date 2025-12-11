@@ -8,6 +8,17 @@ import { getTranslatedStatus, statusTranslations } from '../utils/translations';
 import ShippingProofUploadModal from '../components/ShippingProofUploadModal';
 import ImageModal from '../components/ImageModal';
 
+// Helper function to get the correct image URL
+const getImageUrl = (url?: string) => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+        return url; // Already an absolute URL (Firebase, external, etc.)
+    }
+    // If it's a relative path (likely an old local file), return empty string
+    // Since old local files are likely gone, we choose not to display a broken image.
+    return '';
+};
+
 interface Order {
     id: number;
     total: number;
@@ -169,12 +180,12 @@ const AdminPage: React.FC = () => {
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                     <div className="flex flex-col space-y-2">
                                         {order.proofOfPaymentUrl && (
-                                            <button onClick={() => handleImageClick(`http://localhost:3000${order.proofOfPaymentUrl}`)} className="text-blue-600 hover:underline">
+                                            <button onClick={() => handleImageClick(getImageUrl(order.proofOfPaymentUrl))} className="text-blue-600 hover:underline">
                                                 Ver Comprobante de Pago
                                             </button>
                                         )}
-                                        {order.status === 'ENVIADO' && order.shippingProofUrl && (
-                                            <button onClick={() => handleImageClick(`http://localhost:3000${order.shippingProofUrl}`)} className="text-green-600 hover:underline">
+                                        {(order.status === 'ENVIADO' || order.status === 'DELIVERED') && order.shippingProofUrl && (
+                                            <button onClick={() => handleImageClick(getImageUrl(order.shippingProofUrl))} className="text-green-600 hover:underline">
                                                 Ver Comprobante de Envío
                                             </button>
                                         )}
@@ -184,6 +195,7 @@ const AdminPage: React.FC = () => {
                                     <select
                                         value={order.status}
                                         onChange={(e) => handleStatusChange(order.id, e.target.value, order.status)}
+                                        disabled={order.status === 'DELIVERED'}
                                         className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                                     >
                                         {Object.entries(statusTranslations).map(([key, value]) => (

@@ -62,7 +62,17 @@ const FileUpload: React.FC<FileUploadProps> = ({ orderId, onUploadSuccess, exist
             <h3 className="font-semibold">{existingProofUrl ? 'Cambiar comprobante de pago' : 'Adjuntar comprobante de pago'}</h3>
             {previewUrl ? (
                 <div className="mt-4 text-center">
-                    <img src={previewUrl.startsWith('blob:') ? previewUrl : `http://localhost:3000${previewUrl}`} alt="Preview" className="max-h-48 rounded-lg mx-auto" />
+                    <img
+                        src={
+                            previewUrl.startsWith('blob:')
+                                ? previewUrl
+                                : previewUrl.includes('firebasestorage.app')
+                                    ? previewUrl
+                                    : `http://localhost:3000${previewUrl}`
+                        }
+                        alt="Preview"
+                        className="max-h-48 rounded-lg mx-auto"
+                    />
                     <label htmlFor={`dropzone-file-${orderId}`} className="mt-2 text-sm text-blue-600 hover:underline cursor-pointer">
                         {existingProofUrl ? 'Seleccionar otro archivo' : 'Quitar imagen'}
                     </label>
