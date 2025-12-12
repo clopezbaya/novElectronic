@@ -132,7 +132,7 @@ const MyOrdersPage: React.FC = () => {
                                     Total: {formatPrice(order.total, 'Bs')}
                                 </p>
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusClass(order.status)}`}>
+                            <span className={`inline-flex items-center justify-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-semibold whitespace-normal text-center ${getStatusClass(order.status)}`}>
                                 {getTranslatedStatus(order.status)}
                             </span>
                         </div>
@@ -152,7 +152,7 @@ const MyOrdersPage: React.FC = () => {
                             </ul>
                         </div>
                         
-                        {(order.status === 'PENDING_PAYMENT' || order.status === 'PAYMENT_REJECTED') && (
+                        {(order.status === 'PENDING_PAYMENT' || order.status === 'PAYMENT_REJECTED' || order.status === 'PENDING_VERIFICATION') && (
                             <>
                                 <button onClick={() => setSelectedOrder(order)} className="mt-4 text-sm text-blue-600 hover:underline">
                                     Mostrar Información de Pago
@@ -167,7 +167,7 @@ const MyOrdersPage: React.FC = () => {
                             </>
                         )}
                         
-                        {(order.status === 'PENDING_VERIFICATION' || order.status === 'PAID' || order.status === 'ENVIADO' || order.status === 'DELIVERED') && (
+                        {(order.status === 'PAID' || order.status === 'ENVIADO' || order.status === 'DELIVERED') && (
                             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-8">
                                 {order.proofOfPaymentUrl && (
                                     <div className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200">

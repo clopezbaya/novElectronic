@@ -339,23 +339,23 @@ const Header = () => {
             {/* Mobile Menu */}
             {isMenuOpen && (
                 <div className='lg:hidden bg-gray-900 border-t border-gray-700'>
-                    <div className='pt-2 pb-3 space-y-1'>
+                    <div className='pt-2 pb-3 space-y-2 flex flex-col items-center w-full'>
                         <Link
                             to='/'
                             onClick={toggleMenu}
-                            className='block px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
+                            className='block w-full max-w-xs text-center rounded-md px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
                         >
                             Inicio
                         </Link>
 
-                        <div className='w-full flex flex-col items-center'>
+                        <div className='w-full max-w-xs flex flex-col items-center'>
                             <button
                                 onClick={() =>
                                     setIsMobileBrandAccordionOpen(
                                         !isMobileBrandAccordionOpen
                                     )
                                 }
-                                className='flex justify-center items-center w-full max-w-xs text-base font-medium text-white hover:bg-gray-700 py-2'
+                                className='flex justify-center items-center w-full rounded-md text-base font-medium text-white hover:bg-gray-700 py-2'
                             >
                                 <span>Marcas</span>
                                 {isMobileBrandAccordionOpen ? (
@@ -365,16 +365,13 @@ const Header = () => {
                                 )}
                             </button>
                             {isMobileBrandAccordionOpen && (
-                                <div className='flex flex-col items-center space-y-2 mt-2 w-full max-w-xs'>
+                                <div className='flex flex-col items-center space-y-2 mt-2 w-full'>
                                     {brands.map((brand) => (
                                         <Link
                                             key={brand.id}
                                             to={`/brands/${brand.name}`}
-                                            onClick={() => {
-                                                setIsBrandMenuOpen(false);
-                                                toggleMenu();
-                                            }}
-                                            className='text-base text-gray-300 hover:text-white w-full text-center'
+                                            onClick={toggleMenu}
+                                            className='text-base text-gray-300 hover:text-white w-full text-center py-1'
                                         >
                                             {brand.name}
                                         </Link>
@@ -383,14 +380,14 @@ const Header = () => {
                             )}
                         </div>
 
-                        <div className='w-full flex flex-col items-center'>
+                        <div className='w-full max-w-xs flex flex-col items-center'>
                             <button
                                 onClick={() =>
                                     setIsMobileCategoryAccordionOpen(
                                         !isMobileCategoryAccordionOpen
                                     )
                                 }
-                                className='flex justify-center items-center w-full max-w-xs text-base font-medium text-white hover:bg-gray-700 py-2'
+                                className='flex justify-center items-center w-full rounded-md text-base font-medium text-white hover:bg-gray-700 py-2'
                             >
                                 <span>Categorías</span>
                                 {isMobileCategoryAccordionOpen ? (
@@ -400,16 +397,13 @@ const Header = () => {
                                 )}
                             </button>
                             {isMobileCategoryAccordionOpen && (
-                                <div className='flex flex-col items-center space-y-2 mt-2 w-full max-w-xs'>
+                                <div className='flex flex-col items-center space-y-2 mt-2 w-full'>
                                     {categories.map((category) => (
                                         <Link
                                             key={category.id}
                                             to={`/categories/${category.name}`}
-                                            onClick={() => {
-                                                setIsCategoryMenuOpen(false);
-                                                toggleMenu();
-                                            }}
-                                            className='text-base text-gray-300 hover:text-white w-full text-center'
+                                            onClick={toggleMenu}
+                                            className='text-base text-gray-300 hover:text-white w-full text-center py-1'
                                         >
                                             {category.name}
                                         </Link>
@@ -421,15 +415,17 @@ const Header = () => {
                         <Link
                             to='/cart'
                             onClick={toggleMenu}
-                            className='relative block px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
+                            className='relative block w-full max-w-xs text-center rounded-md px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
                         >
-                            <FaShoppingCart className='h-6 w-6 inline-block mr-2' />{' '}
-                            Carrito
-                            {numItemsInCart > 0 && (
-                                <span className='absolute top-0 right-0 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center'>
-                                    {numItemsInCart}
-                                </span>
-                            )}
+                            <div className='flex justify-center items-center'>
+                                <FaShoppingCart className='h-6 w-6 inline-block mr-2' />{' '}
+                                <span>Carrito</span>
+                                {numItemsInCart > 0 && (
+                                    <span className='ml-2 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center'>
+                                        {numItemsInCart}
+                                    </span>
+                                )}
+                            </div>
                         </Link>
 
                         {!isAuthenticated ? (
@@ -437,23 +433,23 @@ const Header = () => {
                                 <Link
                                     to='/login'
                                     onClick={toggleMenu}
-                                    className='block px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
+                                    className='block w-full max-w-xs text-center rounded-md px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
                                 >
                                     Iniciar Sesión
                                 </Link>
                                 <Link
                                     to='/register'
                                     onClick={toggleMenu}
-                                    className='block px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
+                                    className='block w-full max-w-xs text-center rounded-md px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
                                 >
                                     Registrarse
                                 </Link>
                             </>
                         ) : (
-                            <div className='pt-4 pb-3 border-t border-gray-700'>
-                                <div className='flex items-center px-4'>
-                                    <FaUserCircle className='h-8 w-8 text-gray-300' />
-                                    <div className='ml-3'>
+                            <div className='pt-4 pb-3 border-t border-gray-700 w-full max-w-xs'>
+                                <div className='flex flex-col items-center'>
+                                    <FaUserCircle className='h-8 w-8 text-gray-300 mb-2' />
+                                    <div className='text-center'>
                                         <p className='text-base font-medium text-white'>
                                             {user?.name}
                                         </p>
@@ -462,12 +458,12 @@ const Header = () => {
                                         </p>
                                     </div>
                                 </div>
-                                <div className='mt-3 space-y-1'>
+                                <div className='mt-3 space-y-1 flex flex-col items-center'>
                                     {user?.role === 'ADMIN' && (
                                         <Link
                                             to='/admin'
                                             onClick={toggleMenu}
-                                            className='flex items-center px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
+                                            className='block w-full text-center rounded-md px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
                                         >
                                             Panel Admin
                                         </Link>
@@ -475,7 +471,7 @@ const Header = () => {
                                     <Link
                                         to='/profile'
                                         onClick={toggleMenu}
-                                        className='flex items-center px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
+                                        className='block w-full text-center rounded-md px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
                                     >
                                         Mi Perfil
                                     </Link>
@@ -483,14 +479,14 @@ const Header = () => {
                                         <Link
                                             to='/my-orders'
                                             onClick={toggleMenu}
-                                            className='flex items-center px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
+                                            className='block w-full text-center rounded-md px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
                                         >
                                             Mis Pedidos
                                         </Link>
                                     )}
                                     <button
                                         onClick={handleLogout}
-                                        className='w-full text-left flex items-center px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
+                                        className='block w-full text-center rounded-md px-4 py-2 text-base font-medium text-white hover:bg-gray-700'
                                     >
                                         Cerrar Sesión
                                     </button>

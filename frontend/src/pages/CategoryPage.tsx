@@ -1,72 +1,61 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
-import { useAppDispatch, useAppSelector, useDebounce } from '../app/hooks';
+import { useAppDispatch, useAppSelector } from '../app/hooks';
 import customFetch from '../api/customFetch';
-import { setProducts, addProducts, setLoading, setError } from '../features/products/productSlice';
+import { setProducts, setLoading, setError, clearProducts } from '../features/products/productSlice';
 import ProductCard from '../components/ProductCard';
 import { nanoid } from 'nanoid';
-import { FaExclamationTriangle, FaBoxOpen } from 'react-icons/fa';
+import { FaExclamationTriangle, FaBoxOpen, FaSearch } from 'react-icons/fa';
+import type { RootState } from '../app/store';
 
 const CategoryPage: React.FC = () => {
   const { categoryName } = useParams<{ categoryName: string }>();
   const dispatch = useAppDispatch();
-  const { products, totalProducts, isLoading, error } = useAppSelector((state: any) => state.product);
+  const { products, totalProducts, isLoading, error } = useAppSelector((state: RootState) => state.product);
+  
   const [searchTerm, setSearchTerm] = useState('');
-  const [page, setPage] = useState(1);
+  const [activeSearchTerm, setActiveSearchTerm] = useState('');
 
-  const debouncedSearch = useDebounce(searchTerm, 500);
-  const limit = 8;
-
-  const fetchProducts = useCallback(async (pageNum: number, search: string) => {
+  const fetchProducts = useCallback(async (search: string) => {
     dispatch(setLoading(true));
     try {
       const queryParams = new URLSearchParams({
-        page: pageNum.toString(),
-        limit: limit.toString(),
         category: categoryName || '',
       });
       if (search) {
         queryParams.append('search', search);
       }
       const response = await customFetch.get(`/products?${queryParams.toString()}`);
-      if (pageNum === 1) {
-        dispatch(setProducts(response.data));
-      } else {
-        dispatch(addProducts(response.data));
-      }
+      dispatch(setProducts(response.data));
     } catch (err: any) {
       console.error('Error fetching products:', err);
       dispatch(setError('Fallo al cargar productos. Por favor, intente de nuevo más tarde.'));
+    } finally {
+        dispatch(setLoading(false));
     }
   }, [dispatch, categoryName]);
 
   useEffect(() => {
-    setPage(1);
-    fetchProducts(1, debouncedSearch);
-  }, [fetchProducts, debouncedSearch, categoryName]);
+    dispatch(clearProducts());
+    fetchProducts(activeSearchTerm);
+  }, [activeSearchTerm, categoryName, dispatch, fetchProducts]);
 
-  useEffect(() => {
-    if (page > 1) {
-      fetchProducts(page, debouncedSearch);
-    }
-  }, [page]);
-
-
-  const handleLoadMore = () => {
-    setPage(prevPage => prevPage + 1);
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setActiveSearchTerm(searchTerm);
   };
 
-  if (isLoading && page === 1) {
-    return (
-        <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
+  if (isLoading && products.length === 0) {
+      return (
+          <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
             <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse"></div>
                 <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
                 <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
                 <p className="text-2xl text-gray-700 ml-4 mt-4">Cargando...</p>
             </div>
-        </div>
-    );
+          </div>
+      );
   }
 
   if (error) {
@@ -77,7 +66,7 @@ const CategoryPage: React.FC = () => {
                 <h1 className="text-3xl font-bold text-gray-800 mb-2">¡Oops! Algo salió mal.</h1>
                 <p className="text-gray-600 mb-6">No pudimos cargar los productos. Por favor, revisa tu conexión e intenta de nuevo.</p>
                 <button
-                    onClick={() => fetchProducts(1, debouncedSearch)}
+                    onClick={() => fetchProducts(activeSearchTerm)}
                     className="bg-red-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-red-600 transition duration-300 transform hover:scale-105"
                 >
                     Intentar de Nuevo
@@ -92,13 +81,18 @@ const CategoryPage: React.FC = () => {
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24 lg:max-w-7xl lg:px-8">
         <div className="flex justify-between items-center mb-8">
             <h2 className="text-2xl font-bold tracking-tight text-gray-900">Productos de la categoría: {categoryName}</h2>
-            <input
-                type="text"
-                placeholder="Buscar en esta categoría..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-1/3 p-2 border border-gray-300 rounded-md"
-            />
+            <form onSubmit={handleSearchSubmit} className="relative flex w-1/3">
+                <input
+                    type="text"
+                    placeholder="Buscar en esta categoría..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-l-md"
+                />
+                <button type="submit" className="p-2 bg-gray-800 text-white rounded-r-md hover:bg-gray-700">
+                    <FaSearch />
+                </button>
+            </form>
         </div>
 
         <div className="mt-6">
@@ -108,32 +102,18 @@ const CategoryPage: React.FC = () => {
         </div>
 
         {products.length > 0 ? (
-            <>
-                <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8">
-                {products.map((product: any) => (
-                    <ProductCard
-                    key={nanoid()}
-                    id={product.id}
-                    title={product.title}
-                    image={product.image}
-                    price={product.price}
-                    currency={product.currency}
-                    />
-                ))}
-                </div>
-
-                {products.length < totalProducts && (
-                <div className="mt-10 text-center">
-                    <button
-                    onClick={handleLoadMore}
-                    disabled={isLoading}
-                    className="bg-gray-900 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-gray-700 transition duration-300 disabled:opacity-50"
-                    >
-                    {isLoading ? 'Cargando...' : 'Ver Más'}
-                    </button>
-                </div>
-                )}
-            </>
+            <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8">
+            {products.map((product: any) => (
+                <ProductCard
+                key={nanoid()}
+                id={product.id}
+                title={product.title}
+                image={product.image}
+                price={product.price}
+                currency={product.currency}
+                />
+            ))}
+            </div>
         ) : (
             <div className="text-center py-16">
                 <FaBoxOpen className="text-7xl text-gray-400 mb-6 mx-auto" />

@@ -179,7 +179,7 @@ const AdminOrderDetailPage: React.FC = () => {
                                 >
                                     <div className='flex items-center'>
                                         <img
-                                            src={item.product.imageUrl}
+                                            src={item.productImage}
                                             alt={item.product.name}
                                             className='h-16 w-16 rounded object-cover mr-4'
                                         />

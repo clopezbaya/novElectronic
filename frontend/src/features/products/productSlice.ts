@@ -36,12 +36,6 @@ export const productSlice = createSlice({
       state.isLoading = false;
       state.error = null;
     },
-    addProducts: (state, action: PayloadAction<{ products: Product[], totalProducts: number }>) => {
-        state.products = [...state.products, ...action.payload.products];
-        state.totalProducts = action.payload.totalProducts;
-        state.isLoading = false;
-        state.error = null;
-    },
     setLoading: (state, action: PayloadAction<boolean>) => {
       state.isLoading = action.payload;
     },
@@ -49,9 +43,14 @@ export const productSlice = createSlice({
       state.error = action.payload;
       state.isLoading = false;
     },
+    clearProducts: (state) => {
+        state.products = [];
+        state.totalProducts = 0;
+        state.error = null;
+    }
   },
 });
 
-export const { setProducts, addProducts, setLoading, setError } = productSlice.actions;
+export const { setProducts, setLoading, setError, clearProducts } = productSlice.actions;
 
 export default productSlice.reducer;

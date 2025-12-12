@@ -933,80 +933,57 @@ app.delete(
 // --- Endpoints de la API (Públicos) ---
 app.get('/api/products', async (req, res) => {
     console.log('[API] Solicitud recibida en /api/products');
-    try {
+    if (process.env.NODE_ENV !== 'production') {
         await updateDatabaseIfNeeded();
-        const { search, brand, category, page = 1, limit = 8 } = req.query;
+    }
+    const { search, brand, category, page, limit } = req.query;
 
+    let queryOptions = {
+        where: { stock: { gt: 0 } },
+        include: { brand: true, categories: true, images: true },
+    };
+
+    if (search) {
+        queryOptions.where.name = { contains: search.toString() };
+    }
+    if (brand) {
+        queryOptions.where.brand = { name: { equals: brand.toString() } };
+    }
+    if (category) {
+        queryOptions.where.categories = { some: { name: { equals: category.toString() } } };
+    }
+
+    if (page && limit) {
         const pageNum = parseInt(page, 10);
         const limitNum = parseInt(limit, 10);
         const skip = (pageNum - 1) * limitNum;
-
-        let whereClause = {
-            stock: {
-                gt: 0,
-            },
-        };
-
-        if (search) {
-            whereClause.name = {
-                contains: search.toString(),
-            };
-        }
-
-        if (brand) {
-            whereClause.brand = {
-                name: {
-                    equals: brand.toString(),
-                },
-            };
-        }
-
-        if (category) {
-            whereClause.categories = {
-                some: {
-                    name: {
-                        equals: category.toString(),
-                    },
-                },
-            };
-        }
-
-        const totalProducts = await prisma.product.count({
-            where: whereClause,
-        });
-        const products = await prisma.product.findMany({
-            where: whereClause,
-            include: { brand: true, categories: true, images: true }, // Include images
-            skip: skip,
-            take: limitNum,
-        });
-
-        console.log('[API] Sirviendo productos desde la base de datos.');
-
-        const formattedProducts = products.map((p) => ({
-            id: p.id,
-            title: p.name,
-            image: p.images[0]?.url || 'https://via.placeholder.com/150', // Use first image or placeholder
-            images: p.images.map(img => img.url), // Return all image URLs
-            brand: p.brand.name,
-            categories: p.categories.map((c) => c.name),
-            price: p.resalePrice,
-            currency: 'Bs',
-            popularity: 0,
-            stock: p.stock,
-            description: p.description,
-        }));
-
-        res.json({
-            products: formattedProducts,
-            totalProducts: totalProducts,
-            page: pageNum,
-            totalPages: Math.ceil(totalProducts / limitNum),
-        });
-    } catch (error) {
-        console.error('[API] Error en /api/products:', error);
-        res.status(500).json({ message: 'Error interno del servidor.' });
+        queryOptions.skip = skip;
+        queryOptions.take = limitNum;
     }
+
+    const totalProducts = await prisma.product.count({ where: queryOptions.where });
+    const products = await prisma.product.findMany(queryOptions);
+
+    console.log('[API] Sirviendo productos desde la base de datos.');
+
+    const formattedProducts = products.map((p) => ({
+        id: p.id,
+        title: p.name,
+        image: p.images[0]?.url || 'https://via.placeholder.com/150',
+        images: p.images.map(img => img.url),
+        brand: p.brand.name,
+        categories: p.categories.map((c) => c.name),
+        price: p.resalePrice,
+        currency: 'Bs',
+        popularity: 0,
+        stock: p.stock,
+        description: p.description,
+    }));
+
+    res.json({
+        products: formattedProducts,
+        totalProducts: totalProducts,
+    });
 });
 
 app.get('/api/brands', async (req, res) => {
@@ -1095,32 +1072,54 @@ app.get('/api/products/category/:category', async (req, res) => {
         `[API] Solicitud recibida en /api/products/category/${req.params.category}`
     );
     try {
-        await updateDatabaseIfNeeded();
+        if (process.env.NODE_ENV !== 'production') {
+            await updateDatabaseIfNeeded();
+        }
         const { category } = req.params;
-        const filteredProducts = await prisma.product.findMany({
-            where: {
-                stock: {
-                    gt: 0,
-                },
-                categories: {
-                    some: {
-                        name: {
-                            mode: 'insensitive',
-                            equals: category,
-                        },
+        const { search, page, limit } = req.query;
+
+        let whereClause = {
+            stock: {
+                gt: 0,
+            },
+            categories: {
+                some: {
+                    name: {
+                        mode: 'insensitive',
+                        equals: category.toString(),
                     },
                 },
             },
-            include: { brand: true, categories: true, images: true }, // Include images
-        });
+        };
+
+        if (search) {
+            whereClause.name = { contains: search.toString() };
+        }
+
+        let queryOptions = {
+            where: whereClause,
+            include: { brand: true, categories: true, images: true },
+        };
+
+        if (page && limit) {
+            const pageNum = parseInt(page, 10);
+            const limitNum = parseInt(limit, 10);
+            const skip = (pageNum - 1) * limitNum;
+            queryOptions.skip = skip;
+            queryOptions.take = limitNum;
+        }
+
+        const totalProducts = await prisma.product.count({ where: queryOptions.where });
+        const filteredProducts = await prisma.product.findMany(queryOptions);
+
         console.log(
             `[API] Encontrados ${filteredProducts.length} productos en la categoría '${category}'.`
         );
         const formattedProducts = filteredProducts.map((p) => ({
             id: p.id,
             title: p.name,
-            image: p.images[0]?.url || 'https://via.placeholder.com/150', // Use first image or placeholder
-            images: p.images.map(img => img.url), // Return all image URLs
+            image: p.images[0]?.url || 'https://via.placeholder.com/150',
+            images: p.images.map(img => img.url),
             brand: p.brand.name,
             categories: p.categories.map((c) => c.name),
             price: p.resalePrice,
@@ -1129,7 +1128,10 @@ app.get('/api/products/category/:category', async (req, res) => {
             stock: p.stock,
             description: p.description,
         }));
-        res.json(formattedProducts);
+        res.json({
+            products: formattedProducts,
+            totalProducts: totalProducts,
+        });
     } catch (error) {
         console.error(
             `[API] Error en /api/products/category/${req.params.category}:`,
