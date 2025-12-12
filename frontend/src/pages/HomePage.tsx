@@ -1,70 +1,59 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useAppDispatch, useAppSelector, useDebounce } from '../app/hooks';
+import { useAppDispatch, useAppSelector } from '../app/hooks';
 import customFetch from '../api/customFetch';
-import { setProducts, addProducts, setLoading, setError } from '../features/products/productSlice';
+import { setProducts, setLoading, setError } from '../features/products/productSlice';
 import ProductCard from '../components/ProductCard';
 import { nanoid } from 'nanoid';
-import { FaExclamationTriangle, FaBoxOpen } from 'react-icons/fa';
+import { FaExclamationTriangle, FaBoxOpen, FaSearch } from 'react-icons/fa';
+import type { RootState } from '../app/store';
 
 const HomePage: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { products, totalProducts, isLoading, error } = useAppSelector((state: any) => state.product);
-  const [page, setPage] = useState(1);
+  const { products, totalProducts, isLoading, error } = useAppSelector((state: RootState) => state.product);
+  
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeSearchTerm, setActiveSearchTerm] = useState('');
 
-  const debouncedSearch = useDebounce(searchTerm, 500);
-  const limit = 8;
-
-  const fetchProducts = useCallback(async (pageNum: number, search: string) => {
+  const fetchProducts = useCallback(async (search: string) => {
     dispatch(setLoading(true));
     try {
-      const queryParams = new URLSearchParams({
-        page: pageNum.toString(),
-        limit: limit.toString(),
-      });
+      const queryParams = new URLSearchParams();
+      // No page or limit parameters sent, backend will return all.
       if (search) {
         queryParams.append('search', search);
       }
       const response = await customFetch.get(`/products?${queryParams.toString()}`);
-      if (pageNum === 1) {
-        dispatch(setProducts(response.data));
-      } else {
-        dispatch(addProducts(response.data));
-      }
+      dispatch(setProducts(response.data));
     } catch (err: any) {
       console.error('Error fetching products:', err);
       dispatch(setError('Fallo al cargar productos. Por favor, intente de nuevo más tarde.'));
+    } finally {
+        dispatch(setLoading(false));
     }
   }, [dispatch]);
 
+  // Effect for initial load and search changes
   useEffect(() => {
-    setPage(1);
-    fetchProducts(1, debouncedSearch);
-  }, [fetchProducts, debouncedSearch]);
+    fetchProducts(activeSearchTerm);
+  }, [activeSearchTerm, fetchProducts]);
 
-  useEffect(() => {
-    if (page > 1) {
-      fetchProducts(page, debouncedSearch);
-    }
-  }, [page]);
-
-
-  const handleLoadMore = () => {
-    setPage(prevPage => prevPage + 1);
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setActiveSearchTerm(searchTerm);
   };
 
-    if (isLoading && page === 1 && !debouncedSearch) {
-        return (
-            <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
-                <div className="flex items-center space-x-2">
-                    <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse"></div>
-                    <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                    <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                    <p className="text-2xl text-gray-700 ml-4 mt-4">Cargando...</p>
-                </div>
-            </div>
-        );
-    }
+  if (isLoading && products.length === 0) {
+      return (
+          <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
+              <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse"></div>
+                  <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                  <p className="text-2xl text-gray-700 ml-4 mt-4">Cargando...</p>
+              </div>
+          </div>
+      );
+  }
 
   if (error) {
     return (
@@ -74,7 +63,7 @@ const HomePage: React.FC = () => {
                 <h1 className="text-3xl font-bold text-gray-800 mb-2">¡Oops! Algo salió mal.</h1>
                 <p className="text-gray-600 mb-6">No pudimos cargar los productos. Por favor, revisa tu conexión e intenta de nuevo.</p>
                 <button
-                    onClick={() => fetchProducts(1, debouncedSearch)}
+                    onClick={() => fetchProducts(searchTerm)}
                     className="bg-red-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-red-600 transition duration-300 transform hover:scale-105"
                 >
                     Intentar de Nuevo
@@ -93,23 +82,21 @@ const HomePage: React.FC = () => {
                 Nuestros Últimos Productos
                 </h2>
                 <p className="mt-4 text-lg text-gray-600">
-                Descubre nuestra nueva colección de productos. Tenemos algo para todos.
+                Descubre nuestra colección completa de productos.
                 </p>
             </div>
-            <div className="relative w-1/3">
+            <form onSubmit={handleSearchSubmit} className="relative flex w-1/3">
                 <input
                     type="text"
                     placeholder="Buscar en todos los productos..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md"
+                    className="w-full p-2 border border-gray-300 rounded-l-md"
                 />
-                {isLoading && (
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                        <div className="w-5 h-5 border-t-2 border-b-2 border-gray-900 rounded-full animate-spin"></div>
-                    </div>
-                )}
-            </div>
+                <button type="submit" className="p-2 bg-gray-800 text-white rounded-r-md hover:bg-gray-700">
+                    <FaSearch />
+                </button>
+            </form>
         </div>
 
         <div className="mt-6">
@@ -119,32 +106,18 @@ const HomePage: React.FC = () => {
         </div>
 
         {products.length > 0 ? (
-            <>
-                <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8">
-                {products.map((product: any) => (
-                    <ProductCard
-                    key={nanoid()}
-                    id={product.id}
-                    title={product.title}
-                    image={product.image}
-                    price={product.price}
-                    currency={product.currency}
-                    />
-                ))}
-                </div>
-
-                {products.length < totalProducts && (
-                <div className="mt-10 text-center">
-                    <button
-                    onClick={handleLoadMore}
-                    disabled={isLoading}
-                    className="bg-gray-900 text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-gray-700 transition duration-300 disabled:opacity-50"
-                    >
-                    {isLoading ? 'Cargando...' : 'Ver Más'}
-                    </button>
-                </div>
-                )}
-            </>
+            <div className="mt-10 grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-x-8">
+            {products.map((product: any) => (
+                <ProductCard
+                key={nanoid()}
+                id={product.id}
+                title={product.title}
+                image={product.image}
+                price={product.price}
+                currency={product.currency}
+                />
+            ))}
+            </div>
         ) : (
             <div className="text-center py-16">
                 <FaBoxOpen className="text-7xl text-gray-400 mb-6 mx-auto" />

@@ -6,6 +6,7 @@ import { useAppDispatch } from '../app/hooks';
 import { addItem } from '../features/cart/cartSlice';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
+import { FaArrowLeft } from 'react-icons/fa'; // Added FaArrowLeft import
 
 interface Product {
   id: string;
@@ -131,6 +132,14 @@ const SingleProductPage: React.FC = () => {
     <div className="bg-white">
       <div className="pt-6">
         <div className="mx-auto max-w-2xl px-4 pb-16 pt-10 sm:px-6 lg:max-w-7xl lg:px-8">
+            {/* Back Button */}
+            <button
+                onClick={() => navigate(-1)}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mb-6"
+            >
+                <FaArrowLeft className="-ml-1 mr-2 h-5 w-5" aria-hidden="true" />
+                Volver a la tienda
+            </button>
             <div className="lg:grid lg:grid-cols-2 lg:gap-x-8">
                 {/* Image gallery */}
                 <div className="lg:col-span-1">
@@ -145,7 +154,7 @@ const SingleProductPage: React.FC = () => {
 
                     {/* Image thumbnails */}
                     {product.images.length > 1 && (
-                        <div className="mt-6 hidden w-full sm:block">
+                        <div className="mt-6 w-full block"> {/* Removed 'hidden' and 'sm:block' */}
                             <h3 className="sr-only">Miniaturas de imágenes</h3>
                             <div className="grid grid-cols-4 gap-6">
                                 {product.images.map((image, index) => (
