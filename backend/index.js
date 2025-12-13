@@ -72,6 +72,12 @@ app.use('/api/admin', adminRoutes);
 
 
 // --- Server Start ---
+(async () => {
+    // Run the database check once on server startup
+    const { updateDatabaseIfNeeded } = require('./services/dbUpdate.service');
+    await updateDatabaseIfNeeded();
+})();
+
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
