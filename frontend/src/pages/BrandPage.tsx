@@ -66,14 +66,23 @@ const BrandPage: React.FC = () => {
     );
   }
 
-  if (error) {
-    return (
-        <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
-            {/* Error JSX */}
-        </div>
-    );
-  }
-
+      if (error) {
+        return (
+            <div className="flex items-center justify-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
+                <div className="bg-white p-8 rounded-lg shadow-2xl max-w-md w-full text-center">
+                    <FaExclamationTriangle className="text-7xl text-red-400 mb-6 mx-auto" />
+                    <h1 className="text-3xl font-bold text-gray-800 mb-2">¡Oops! Algo salió mal.</h1>
+                    <p className="text-gray-600 mb-6">No pudimos cargar los productos. Por favor, revisa tu conexión e intenta de nuevo.</p>
+                    <button
+                        onClick={() => fetchProducts(activeSearchTerm)}
+                        className="bg-red-500 text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-red-600 transition duration-300 transform hover:scale-105"
+                    >
+                        Intentar de Nuevo
+                    </button>
+                </div>
+            </div>
+        );
+      }
   return (
     <div className="bg-white">
       <div className="bg-gray-200 h-64 w-full">
