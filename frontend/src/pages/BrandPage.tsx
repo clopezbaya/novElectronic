@@ -50,11 +50,13 @@ const BrandPage: React.FC = () => {
   const getBrandBanner = () => {
     if (brandName?.toLowerCase() === 'havit') {
       return (
-        <img src={havitLogo} alt={`${brandName} Banner`} className="w-full h-full object-cover" />
+        <img src={havitLogo} alt={`${brandName} Banner`} className="w-full h-auto" />
       );
     }
     return (
-      <h1 className="text-4xl font-bold text-gray-800">{brandName}</h1>
+      <div className="flex items-center justify-center h-full">
+        <h1 className="text-4xl font-bold text-gray-800">{brandName}</h1>
+      </div>
     );
   };
 
@@ -85,7 +87,7 @@ const BrandPage: React.FC = () => {
       }
   return (
     <div className="bg-white">
-      <div className="bg-gray-200 h-64 w-full">
+      <div className="bg-gray-200 w-full">
         {getBrandBanner()}
       </div>
 

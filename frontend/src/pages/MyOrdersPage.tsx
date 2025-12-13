@@ -9,6 +9,7 @@ import PaymentInfoModal from '../components/PaymentInfoModal';
 import ImageModal from '../components/ImageModal';
 import { logout } from '../features/auth/authSlice';
 import { getTranslatedStatus } from '../utils/translations';
+import { FaMoneyBillWave } from 'react-icons/fa';
 
 interface Order {
     id: number;
@@ -29,28 +30,25 @@ interface Order {
 const MyOrdersPage: React.FC = () => {
     const [orders, setOrders] = useState<Order[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+    // This state now controls the payment info modal
+    const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const { token } = useAppSelector((state: any) => state.auth);
     const dispatch = useAppDispatch();
     const navigate = useNavigate();
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
     const [selectedImageUrl, setSelectedImageUrl] = useState('');
 
-    // Helper function to get the correct image URL
     const getImageUrl = (url?: string) => {
         if (!url) return '';
         if (url.startsWith('http://') || url.startsWith('https://')) {
-            return url; // Already an absolute URL (Firebase, external, etc.)
+            return url;
         }
-        // If it's a relative path (likely an old local file), return empty string or a placeholder
-        // Since old local files are likely gone, we choose not to display a broken image.
-        // If you want a placeholder, change '' to '/path/to/placeholder-image.png'
         return '';
     };
 
     const handleImageClick = (imageUrl: string) => {
         setSelectedImageUrl(imageUrl);
-        setIsModalOpen(true);
+        setIsImageModalOpen(true);
     };
 
     const fetchOrders = useCallback(async () => {
@@ -58,9 +56,7 @@ const MyOrdersPage: React.FC = () => {
         setLoading(true);
         try {
             const response = await customFetch.get('/orders', {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
             });
             setOrders(response.data);
         } catch (error: any) {
@@ -81,22 +77,14 @@ const MyOrdersPage: React.FC = () => {
 
     const getStatusClass = (status: string) => {
         switch (status) {
-            case 'PENDING_PAYMENT':
-                return 'bg-yellow-200 text-yellow-800';
-            case 'PENDING_VERIFICATION':
-                return 'bg-blue-200 text-blue-800';
-            case 'PAID':
-                return 'bg-green-200 text-green-800';
-            case 'ENVIADO':
-                return 'bg-purple-200 text-purple-800';
-            case 'DELIVERED':
-                return 'bg-gray-400 text-white';
-            case 'CANCELED':
-                return 'bg-red-200 text-red-800';
-            case 'PAYMENT_REJECTED':
-                return 'bg-red-300 text-red-900';
-            default:
-                return 'bg-gray-200 text-gray-800';
+            case 'PENDING_PAYMENT': return 'bg-yellow-200 text-yellow-800';
+            case 'PENDING_VERIFICATION': return 'bg-blue-200 text-blue-800';
+            case 'PAID': return 'bg-green-200 text-green-800';
+            case 'ENVIADO': return 'bg-purple-200 text-purple-800';
+            case 'DELIVERED': return 'bg-gray-400 text-white';
+            case 'CANCELED': return 'bg-red-200 text-red-800';
+            case 'PAYMENT_REJECTED': return 'bg-red-300 text-red-900';
+            default: return 'bg-gray-200 text-gray-800';
         }
     };
 
@@ -122,15 +110,11 @@ const MyOrdersPage: React.FC = () => {
             <div className="space-y-8">
                 {orders.map((order) => (
                     <div key={order.id} className="bg-white p-6 rounded-lg shadow-md">
-                        <div className="flex justify-between items-start">
+                        <div className="flex flex-wrap justify-between items-start gap-4">
                             <div>
                                 <h2 className="text-xl font-bold">Pedido #{order.id}</h2>
-                                <p className="text-sm text-gray-500">
-                                    Realizado el: {new Date(order.createdAt).toLocaleDateString()}
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                    Total: {formatPrice(order.total, 'Bs')}
-                                </p>
+                                <p className="text-sm text-gray-500">Realizado el: {new Date(order.createdAt).toLocaleDateString()}</p>
+                                <p className="text-sm text-gray-500">Total: {formatPrice(order.total, 'Bs')}</p>
                             </div>
                             <span className={`inline-flex items-center justify-center px-2 py-1 sm:px-3 sm:py-1 rounded-full text-xs sm:text-sm font-semibold whitespace-normal text-center ${getStatusClass(order.status)}`}>
                                 {getTranslatedStatus(order.status)}
@@ -153,18 +137,25 @@ const MyOrdersPage: React.FC = () => {
                         </div>
                         
                         {(order.status === 'PENDING_PAYMENT' || order.status === 'PAYMENT_REJECTED' || order.status === 'PENDING_VERIFICATION') && (
-                            <>
-                                <button onClick={() => setSelectedOrder(order)} className="mt-4 text-sm text-blue-600 hover:underline">
-                                    Mostrar Información de Pago
+                            <div className="mt-6 border-t pt-6">
+                                <button 
+                                    onClick={() => setIsPaymentModalOpen(true)} 
+                                    className="flex items-center justify-center w-full sm:w-auto sm:float-right bg-blue-600 text-white font-bold py-2 px-4 rounded-lg shadow-md hover:bg-blue-700 transition duration-300 mb-4"
+                                >
+                                    <FaMoneyBillWave className="mr-2" />
+                                    Ver Métodos de Pago
                                 </button>
                                 {order.status === 'PAYMENT_REJECTED' && (
-                                    <div className="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                                    <div className="my-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
                                         <p className="font-bold">Tu pago fue rechazado.</p>
                                         <p>Por favor, verifica tu comprobante y vuelve a subirlo.</p>
                                     </div>
                                 )}
-                                <FileUpload orderId={order.id} onUploadSuccess={fetchOrders} existingProofUrl={getImageUrl(order.proofOfPaymentUrl)} />
-                            </>
+                                <div className="clear-both">
+                                  <h3 className="text-lg font-semibold mt-4">Adjuntar o Cambiar Comprobante</h3>
+                                  <FileUpload orderId={order.id} onUploadSuccess={fetchOrders} existingProofUrl={getImageUrl(order.proofOfPaymentUrl)} />
+                                </div>
+                            </div>
                         )}
                         
                         {(order.status === 'PAID' || order.status === 'ENVIADO' || order.status === 'DELIVERED') && (
@@ -172,32 +163,34 @@ const MyOrdersPage: React.FC = () => {
                                 {order.proofOfPaymentUrl && (
                                     <div className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200">
                                         <h3 className="font-semibold text-lg mb-2 text-gray-700">Comprobante de Pago</h3>
-                                                                                <img
-                                                                                    src={getImageUrl(order.proofOfPaymentUrl)}
-                                                                                    alt="Proof of Payment"
-                                                                                    className="w-full h-auto rounded-lg max-h-48 object-contain cursor-pointer"
-                                                                                    onClick={() => handleImageClick(getImageUrl(order.proofOfPaymentUrl))}
-                                                                                />                                    </div>
+                                        <img
+                                            src={getImageUrl(order.proofOfPaymentUrl)}
+                                            alt="Proof of Payment"
+                                            className="w-full h-auto rounded-lg max-h-48 object-contain cursor-pointer"
+                                            onClick={() => handleImageClick(getImageUrl(order.proofOfPaymentUrl))}
+                                        />
+                                    </div>
                                 )}
                                 {order.shippingProofUrl && (
                                     <div className="bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200">
                                         <h3 className="font-semibold text-lg mb-2 text-gray-700">Comprobante de Envío</h3>
-                                                                                <img
-                                                                                    src={getImageUrl(order.shippingProofUrl)}
-                                                                                    alt="Shipping Proof"
-                                                                                    className="w-full h-auto rounded-lg max-h-48 object-contain cursor-pointer"
-                                                                                    onClick={() => handleImageClick(getImageUrl(order.shippingProofUrl))}
-                                                                                />                                    </div>
+                                        <img
+                                            src={getImageUrl(order.shippingProofUrl)}
+                                            alt="Shipping Proof"
+                                            className="w-full h-auto rounded-lg max-h-48 object-contain cursor-pointer"
+                                            onClick={() => handleImageClick(getImageUrl(order.shippingProofUrl))}
+                                        />
+                                    </div>
                                 )}
                             </div>
                         )}
                     </div>
                 ))}
             </div>
-            <PaymentInfoModal isOpen={selectedOrder !== null} onClose={() => setSelectedOrder(null)} />
+            <PaymentInfoModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} handleImageClick={handleImageClick} />
             <ImageModal 
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                isOpen={isImageModalOpen}
+                onClose={() => setIsImageModalOpen(false)}
                 imageUrl={selectedImageUrl}
             />
         </div>
