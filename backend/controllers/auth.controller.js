@@ -5,14 +5,11 @@ const { PrismaClient } = require('../generated/prisma');
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
 
+// Traditional registration
 const register = async (req, res) => {
     const { email, password, name } = req.body;
     try {
-        // Check if a user with this email already exists via Google
         const existingUser = await prisma.user.findUnique({ where: { email } });
-        if (existingUser && existingUser.googleId) {
-            return res.status(409).json({ message: 'Este correo electrónico ya está registrado con Google. Inicia sesión con Google.' });
-        }
         if (existingUser) {
             return res.status(409).json({ message: 'El correo electrónico ya está registrado.' });
         }
@@ -31,29 +28,19 @@ const register = async (req, res) => {
         });
     } catch (error) {
         console.error('Error al registrar usuario:', error);
-        if (error.code === 'P2002') {
-            return res
-                .status(409)
-                .json({ message: 'El correo electrónico ya está registrado.' });
-        }
         res.status(500).json({ message: 'Error interno del servidor.' });
     }
 };
 
+// Traditional login
 const login = async (req, res) => {
     const { email, password } = req.body;
     try {
         const user = await prisma.user.findUnique({ where: { email } });
-        if (!user) {
+        if (!user || !user.password) { // Also check if user has a password (might be a Google-only account)
             return res.status(400).json({ message: 'Credenciales inválidas.' });
         }
-
-        // If user registered via Google, prompt them to use Google login
-        if (user.googleId && !user.password) {
-          return res.status(400).json({ message: 'Has iniciado sesión con Google anteriormente. Por favor, usa el botón de Google para iniciar sesión.' });
-        }
         
-        // If user has a password (either traditional or linked Google account)
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
             return res.status(400).json({ message: 'Credenciales inválidas.' });
@@ -71,6 +58,24 @@ const login = async (req, res) => {
     }
 };
 
+// Google OAuth Callback Handler
+const googleCallback = (req, res) => {
+    // Passport attaches the user to req.user after successful authentication
+    const user = req.user;
+    if (!user) {
+        return res.redirect(`${process.env.FRONTEND_URL}/login?error=google_auth_failed`);
+    }
+
+    const token = jwt.sign(
+        { userId: user.id, email: user.email },
+        JWT_SECRET,
+        { expiresIn: '1h' }
+    );
+    // Redirect user to a dedicated frontend page to handle the token
+    res.redirect(`${process.env.FRONTEND_URL}/auth/google/success?token=${token}`);
+};
+
+// Get current user profile
 const getMe = async (req, res) => {
     try {
         const user = await prisma.user.findUnique({
@@ -93,8 +98,10 @@ const getMe = async (req, res) => {
     }
 };
 
+
 module.exports = {
     register,
     login,
+    googleCallback,
     getMe,
 };
