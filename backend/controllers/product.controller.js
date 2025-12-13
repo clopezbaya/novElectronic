@@ -4,9 +4,7 @@ const { updateDatabaseIfNeeded } = require('../services/dbUpdate.service');
 
 const getAllProducts = async (req, res) => {
     try {
-        if (process.env.NODE_ENV !== 'production') {
-            await updateDatabaseIfNeeded();
-        }
+        
         const { search, brand, category } = req.query;
 
         let whereClause = {
@@ -55,9 +53,7 @@ const getAllProducts = async (req, res) => {
 
 const getProductById = async (req, res) => {
     try {
-        if (process.env.NODE_ENV !== 'production') {
-            await updateDatabaseIfNeeded();
-        }
+        
         const { id } = req.params;
         const product = await prisma.product.findUnique({
             where: {

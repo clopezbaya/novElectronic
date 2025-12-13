@@ -4,7 +4,7 @@ const { updateDatabaseIfNeeded } = require('../services/dbUpdate.service');
 
 const getBrands = async (req, res) => {
     try {
-        await updateDatabaseIfNeeded(); // Ensure DB is populated if empty (dev only)
+        
         const brands = await prisma.brand.findMany({
             select: { id: true, name: true },
             distinct: ['name'],
@@ -19,7 +19,7 @@ const getBrands = async (req, res) => {
 
 const getCategories = async (req, res) => {
     try {
-        await updateDatabaseIfNeeded(); // Ensure DB is populated if empty (dev only)
+        
         const categories = await prisma.category.findMany({
             select: { id: true, name: true },
             distinct: ['name'],
