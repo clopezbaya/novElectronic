@@ -4,26 +4,29 @@ import { formatPrice } from '../utils/formatPrice';
 import { FaCheckCircle } from 'react-icons/fa';
 import FileUpload from '../components/FileUpload';
 import Breadcrumbs from '../components/Breadcrumbs';
+import ImageModal from '../components/ImageModal';
+import PaymentInstructions from '../components/PaymentInstructions'; // Import the new component
 
 const OrderConfirmationPage: React.FC = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const order = location.state?.order;
     const [uploadSuccess, setUploadSuccess] = useState(false);
+    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+    const [selectedImageUrl, setSelectedImageUrl] = useState('');
+
+    const handleImageClick = (imageUrl: string) => {
+        setSelectedImageUrl(imageUrl);
+        setIsImageModalOpen(true);
+    };
 
     const handleUploadSuccess = () => {
         setUploadSuccess(true);
+        // Using a toast here from a library like react-hot-toast would be better
+        // For now, just using state
         setTimeout(() => {
             navigate('/my-orders');
-        }, 2000); // Navigate to my-orders after 2 seconds
-    };
-
-    const qrCodeImage = 'https://via.placeholder.com/200?text=QR+Code';
-    const bankTransferDetails = {
-        bankName: 'Banco Nacional de Bolivia',
-        accountNumber: '123-456789-0',
-        accountHolder: 'NovElectronic S.R.L.',
-        identification: '123456789', // Example RUC/CI
+        }, 2000);
     };
 
     if (!order) {
@@ -52,7 +55,7 @@ const OrderConfirmationPage: React.FC = () => {
                         <div className="flex items-center mt-8">
                             <FaCheckCircle className="text-green-500 text-5xl mr-4" />
                             <div>
-                                <h1 className="text-2xl font-bold text-gray-900">Gracias por tu pedido!</h1>
+                                <h1 className="text-2xl font-bold text-gray-900">¡Gracias por tu pedido!</h1>
                                 <p className="text-gray-600">Tu pedido #{order.id} ha sido recibido.</p>
                             </div>
                         </div>
@@ -93,28 +96,9 @@ const OrderConfirmationPage: React.FC = () => {
                             <h2 className="text-lg font-semibold">Información de Pago</h2>
                             <p className="text-gray-600 mt-2">
                                 Tu pedido será confirmado una vez que recibamos el depósito.
-                                Por favor, realiza el pago y adjunta tu comprobante.
                             </p>
-                            <div className='my-6 p-6 bg-blue-50 rounded-lg border border-blue-200'>
-                                <h3 className='text-xl font-semibold mb-4 text-blue-800'>
-                                    Pago mediante Código QR
-                                </h3>
-                                <img
-                                    src={qrCodeImage}
-                                    alt='Código QR para Pago'
-                                    className='mx-auto w-48 h-48 border border-blue-300 p-2 rounded-md mb-3 shadow-md'
-                                />
-                            </div>
-
-                            <div className='p-6 bg-green-50 rounded-lg border border-green-200 text-left'>
-                                <h3 className='text-xl font-semibold mb-4 text-green-800'>
-                                    Transferencia Bancaria
-                                </h3>
-                                <p><strong>Banco:</strong> {bankTransferDetails.bankName}</p>
-                                <p><strong>Número de Cuenta:</strong> {bankTransferDetails.accountNumber}</p>
-                                <p><strong>Titular:</strong> {bankTransferDetails.accountHolder}</p>
-                                <p><strong>C.I./NIT:</strong> {bankTransferDetails.identification}</p>
-                            </div>
+                            {/* Use the new reusable component */}
+                            <PaymentInstructions handleImageClick={handleImageClick} />
                         </div>
 
                         <div className="mt-8">
@@ -122,7 +106,7 @@ const OrderConfirmationPage: React.FC = () => {
                             {uploadSuccess ? (
                                 <div className="mt-4 text-center p-4 bg-green-100 text-green-800 rounded-lg">
                                     <p>¡Comprobante subido exitosamente!</p>
-                                    <p className="text-sm">Puedes actualizar tu comprobante desde la sección de "Mis Pedidos".</p>
+                                    <p className="text-sm">Serás redirigido a "Mis Pedidos" en un momento.</p>
                                 </div>
                             ) : (
                                 <>
@@ -136,6 +120,11 @@ const OrderConfirmationPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+             <ImageModal
+                isOpen={isImageModalOpen}
+                onClose={() => setIsImageModalOpen(false)}
+                imageUrl={selectedImageUrl}
+            />
         </div>
     );
 };
