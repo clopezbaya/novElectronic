@@ -5,7 +5,7 @@ import customFetch from '../api/customFetch';
 import { setProducts, setLoading, setError, clearProducts } from '../features/products/productSlice';
 import ProductCard from '../components/ProductCard';
 import { nanoid } from 'nanoid';
-import { FaExclamationTriangle, FaBoxOpen, FaSearch } from 'react-icons/fa';
+import { FaExclamationTriangle, FaBoxOpen, FaSearch, FaTimesCircle } from 'react-icons/fa';
 import type { RootState } from '../app/store';
 
 const CategoryPage: React.FC = () => {
@@ -45,15 +45,20 @@ const CategoryPage: React.FC = () => {
     setActiveSearchTerm(searchTerm);
   };
 
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setActiveSearchTerm('');
+  };
+
   if (isLoading && products.length === 0) {
       return (
           <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100vh - 200px)' }}>
-            <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse"></div>
-                <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                <p className="text-2xl text-gray-700 ml-4 mt-4">Cargando...</p>
-            </div>
+              <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse"></div>
+                  <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="w-8 h-8 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                  <p className="text-2xl text-gray-700 ml-4 mt-4">Cargando...</p>
+              </div>
           </div>
       );
   }
@@ -79,17 +84,29 @@ const CategoryPage: React.FC = () => {
   return (
     <div className="bg-white">
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24 lg:max-w-7xl lg:px-8">
-        <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold tracking-tight text-gray-900">Productos de la categoría: {categoryName}</h2>
-            <form onSubmit={handleSearchSubmit} className="relative flex w-1/3">
-                <input
-                    type="text"
-                    placeholder="Buscar en esta categoría..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-l-md"
-                />
-                <button type="submit" className="p-2 bg-gray-800 text-white rounded-r-md hover:bg-gray-700">
+        <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900">Productos en: {categoryName}</h2>
+            <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto sm:max-w-xs lg:max-w-sm">
+                <div className="relative flex-grow">
+                    <input
+                        type="text"
+                        placeholder="Buscar..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full p-2 pl-3 pr-8 border border-gray-300 rounded-l-md focus:ring-gray-900 focus:border-gray-900"
+                    />
+                    {searchTerm && (
+                        <button
+                        type="button"
+                        onClick={handleClearSearch}
+                        className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
+                        aria-label="Limpiar búsqueda"
+                        >
+                        <FaTimesCircle />
+                        </button>
+                    )}
+                </div>
+                <button type="submit" className="p-3 bg-gray-800 text-white rounded-r-md hover:bg-gray-700" aria-label="Buscar">
                     <FaSearch />
                 </button>
             </form>
@@ -118,7 +135,7 @@ const CategoryPage: React.FC = () => {
             <div className="text-center py-16">
                 <FaBoxOpen className="text-7xl text-gray-400 mb-6 mx-auto" />
                 <h1 className="text-3xl font-bold text-gray-800 mb-2">No se encontraron productos</h1>
-                <p className="text-gray-600">No hay productos que coincidan con los filtros actuales en esta categoría.</p>
+                <p className="text-gray-600">No hay productos que coincidan con tu búsqueda "{activeSearchTerm}".</p>
             </div>
         )}
       </div>

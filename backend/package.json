@@ -27,6 +27,7 @@
     "multer": "^2.0.2",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
+    "pdf2json": "^4.0.0",
     "puppeteer": "^24.31.0"
   },
   "devDependencies": {
