@@ -4,7 +4,7 @@ import customFetch from '../api/customFetch';
 import { setProducts, setLoading, setError } from '../features/products/productSlice';
 import ProductCard from '../components/ProductCard';
 import { nanoid } from 'nanoid';
-import { FaExclamationTriangle, FaBoxOpen, FaSearch } from 'react-icons/fa';
+import { FaExclamationTriangle, FaBoxOpen, FaSearch, FaTimesCircle } from 'react-icons/fa';
 import type { RootState } from '../app/store';
 
 const HomePage: React.FC = () => {
@@ -18,7 +18,6 @@ const HomePage: React.FC = () => {
     dispatch(setLoading(true));
     try {
       const queryParams = new URLSearchParams();
-      // No page or limit parameters sent, backend will return all.
       if (search) {
         queryParams.append('search', search);
       }
@@ -32,7 +31,6 @@ const HomePage: React.FC = () => {
     }
   }, [dispatch]);
 
-  // Effect for initial load and search changes
   useEffect(() => {
     fetchProducts(activeSearchTerm);
   }, [activeSearchTerm, fetchProducts]);
@@ -40,6 +38,11 @@ const HomePage: React.FC = () => {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setActiveSearchTerm(searchTerm);
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setActiveSearchTerm('');
   };
 
   if (isLoading && products.length === 0) {
@@ -76,24 +79,36 @@ const HomePage: React.FC = () => {
   return (
     <div className="bg-white">
       <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24 lg:max-w-7xl lg:px-8">
-        <div className="flex justify-between items-center mb-8">
-            <div className="flex-1">
+        <div className="flex justify-between items-center mb-8 flex-wrap gap-4">
+            <div className="flex-1 min-w-0">
                 <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
-                Nuestros Últimos Productos
+                Nuestros Productos
                 </h2>
                 <p className="mt-4 text-lg text-gray-600">
-                Descubre nuestra colección completa de productos.
+                Descubre nuestra colección completa.
                 </p>
             </div>
-            <form onSubmit={handleSearchSubmit} className="relative flex w-1/3">
-                <input
-                    type="text"
-                    placeholder="Buscar en todos los productos..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-l-md"
-                />
-                <button type="submit" className="p-2 bg-gray-800 text-white rounded-r-md hover:bg-gray-700">
+            <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto sm:max-w-xs lg:max-w-sm">
+                <div className="relative flex-grow">
+                  <input
+                      type="text"
+                      placeholder="Buscar..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full p-2 pl-3 pr-8 border border-gray-300 rounded-l-md focus:ring-gray-900 focus:border-gray-900"
+                  />
+                  {searchTerm && (
+                    <button
+                      type="button"
+                      onClick={handleClearSearch}
+                      className="absolute inset-y-0 right-0 flex items-center pr-2 text-gray-400 hover:text-gray-600"
+                      aria-label="Limpiar búsqueda"
+                    >
+                      <FaTimesCircle />
+                    </button>
+                  )}
+                </div>
+                <button type="submit" className="p-3 bg-gray-800 text-white rounded-r-md hover:bg-gray-700" aria-label="Buscar">
                     <FaSearch />
                 </button>
             </form>
@@ -122,7 +137,7 @@ const HomePage: React.FC = () => {
             <div className="text-center py-16">
                 <FaBoxOpen className="text-7xl text-gray-400 mb-6 mx-auto" />
                 <h1 className="text-3xl font-bold text-gray-800 mb-2">No se encontraron productos</h1>
-                <p className="text-gray-600">No hay productos que coincidan con tu búsqueda.</p>
+                <p className="text-gray-600">No hay productos que coincidan con tu búsqueda "{activeSearchTerm}".</p>
             </div>
         )}
       </div>

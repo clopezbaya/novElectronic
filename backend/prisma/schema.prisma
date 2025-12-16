@@ -70,6 +70,8 @@ model Product {
   description   String?
   originalPrice Float
   resalePrice   Float
+  currency      String   @default("Bs")
+  isSpecialOrder Boolean  @default(false)
   // imageUrl      String // Removed
   sourceUrl     String         @unique
   stock         Int            @default(0)
