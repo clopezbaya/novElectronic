@@ -27,6 +27,7 @@ import AdminProductsPage from './pages/AdminProductsPage';
 import AddProductPage from './pages/AddProductPage';
 import EditProductPage from './pages/EditProductPage';
 import AdminOrderDetailPage from './pages/AdminOrderDetailPage';
+import TermsAndConditionsPage from './pages/TermsAndConditionsPage'; // Import the new page
 
 // Placeholder for Error Page
 const ErrorPage = () => (
@@ -53,6 +54,7 @@ const router = createBrowserRouter([
       { path: 'login', element: <LoginPage /> },
       { path: 'profile', element: <ProfilePage /> },
       { path: 'my-orders', element: <MyOrdersPage /> },
+      { path: 'terms-and-conditions', element: <TermsAndConditionsPage /> },
     ],
   },
   {

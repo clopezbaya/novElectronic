@@ -1,6 +1,11 @@
 const { PrismaClient } = require('../generated/prisma');
 const prisma = new PrismaClient();
 const admin = require("firebase-admin");
+const {
+    sendOrderStatusUpdateEmail,
+    sendPaymentVerifiedEmail, // New import
+    sendOrderShippedEmail, // New import
+} = require('../services/email.service');
 
 const bucket = admin.storage().bucket();
 
@@ -86,7 +91,33 @@ const updateOrderStatus = async (req, res) => {
         const updatedOrder = await prisma.order.update({
             where: { id: parseInt(id) },
             data: { status },
+            include: { user: { select: { email: true, name: true } } }
         });
+
+        if (updatedOrder.user) {
+            const orderForEmail = {
+                id: updatedOrder.id,
+                orderNumber: updatedOrder.orderNumber,
+                userEmail: updatedOrder.user.email,
+                userName: updatedOrder.user.name,
+                status: updatedOrder.status,
+            };
+
+            switch (status) {
+                case 'PAID':
+                    await sendPaymentVerifiedEmail(orderForEmail);
+                    break;
+                case 'ENVIADO':
+                    // This email is handled by shipOrder, not here directly from updateOrderStatus
+                    break;
+                default:
+                    await sendOrderStatusUpdateEmail(orderForEmail);
+                    break;
+            }
+        } else {
+            console.error(`Usuario no encontrado para la orden ${updatedOrder.id}, no se pudo enviar el email de actualización.`);
+        }
+
         res.json({
             message: 'Estado del pedido actualizado.',
             order: updatedOrder,
@@ -128,7 +159,23 @@ const shipOrder = async (req, res) => {
                     shippingProofUrl: publicUrl,
                     status: 'ENVIADO',
                 },
+                include: { user: { select: { email: true, name: true } } }
             });
+
+            if (updatedOrder.user) {
+                const orderForEmail = {
+                    id: updatedOrder.id,
+                    orderNumber: updatedOrder.orderNumber,
+                    userEmail: updatedOrder.user.email,
+                    userName: updatedOrder.user.name,
+                    status: updatedOrder.status,
+                    shippingProofUrl: updatedOrder.shippingProofUrl,
+                };
+                await sendOrderShippedEmail(orderForEmail);
+            } else {
+                console.error(`Usuario no encontrado para la orden ${updatedOrder.id}, no se pudo enviar el email de envío.`);
+            }
+
             res.json({
                 message: 'Comprobante de envío subido y estado actualizado.',
                 order: updatedOrder,

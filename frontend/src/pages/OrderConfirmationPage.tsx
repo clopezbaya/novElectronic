@@ -56,7 +56,7 @@ const OrderConfirmationPage: React.FC = () => {
                             <FaCheckCircle className="text-green-500 text-5xl mr-4" />
                             <div>
                                 <h1 className="text-2xl font-bold text-gray-900">¡Gracias por tu pedido!</h1>
-                                <p className="text-gray-600">Tu pedido #{order.id} ha sido recibido.</p>
+                                <p className="text-gray-600">Tu pedido #{order.orderNumber} ha sido recibido.</p>
                             </div>
                         </div>
 

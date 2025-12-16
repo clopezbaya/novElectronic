@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('../generated/prisma');
+const { sendWelcomeEmail } = require('../services/email.service');
 
 const prisma = new PrismaClient();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
@@ -22,6 +23,7 @@ const register = async (req, res) => {
                 name,
             },
         });
+        await sendWelcomeEmail(user.email, user.name || user.email); // Enviar email de bienvenida
         res.status(201).json({
             message: 'Usuario registrado exitosamente',
             userId: user.id,

@@ -13,6 +13,7 @@ import { FaMoneyBillWave } from 'react-icons/fa';
 
 interface Order {
     id: number;
+    orderNumber: number;
     total: number;
     status: string;
     createdAt: string;
@@ -112,7 +113,7 @@ const MyOrdersPage: React.FC = () => {
                     <div key={order.id} className="bg-white p-6 rounded-lg shadow-md">
                         <div className="flex flex-wrap justify-between items-start gap-4">
                             <div>
-                                <h2 className="text-xl font-bold">Pedido #{order.id}</h2>
+                                <h2 className="text-xl font-bold">Pedido #{order.orderNumber}</h2>
                                 <p className="text-sm text-gray-500">Realizado el: {new Date(order.createdAt).toLocaleDateString()}</p>
                                 <p className="text-sm text-gray-500">Total: {formatPrice(order.total, 'Bs')}</p>
                             </div>
