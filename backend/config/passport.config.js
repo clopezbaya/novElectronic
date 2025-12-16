@@ -1,4 +1,5 @@
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const { sendWelcomeEmail } = require('../services/email.service');
 
 module.exports = function(passport, prisma) {
     passport.use(new GoogleStrategy({
@@ -7,29 +8,38 @@ module.exports = function(passport, prisma) {
         callbackURL: process.env.GOOGLE_CALLBACK_URL
       },
       async (accessToken, refreshToken, profile, done) => {
+        const email = profile.emails[0].value;
+        const name = profile.displayName;
+        const googleId = profile.id;
+
         try {
           let user = await prisma.user.findUnique({
-            where: { googleId: profile.id }
+            where: { googleId: googleId }
           });
     
           if (!user) {
-            user = await prisma.user.findUnique({
-              where: { email: profile.emails[0].value }
+            // Check if user exists with the same email
+            let existingUser = await prisma.user.findUnique({
+              where: { email: email }
             });
     
-            if (user) {
+            if (existingUser) {
+              // If user exists but without googleId, link the account
               user = await prisma.user.update({
-                where: { id: user.id },
-                data: { googleId: profile.id }
+                where: { email: email },
+                data: { googleId: googleId }
               });
             } else {
+              // If user does not exist at all, create a new one
               user = await prisma.user.create({
                 data: {
-                  email: profile.emails[0].value,
-                  name: profile.displayName,
-                  googleId: profile.id,
+                  email: email,
+                  name: name,
+                  googleId: googleId,
                 }
               });
+              // Send welcome email ONLY when a new user is created
+              await sendWelcomeEmail(user.email, user.name);
             }
           }
           return done(null, user);

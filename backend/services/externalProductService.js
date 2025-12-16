@@ -3,7 +3,17 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-const priceIncreasePercentage = parseFloat(process.env.PRICE_INCREASE_PERCENTAGE || '0');
+const calculateResalePrice = (originalPrice) => {
+    if (originalPrice >= 2000) {
+        return Math.round(originalPrice * 1.20); // +20%
+    } else if (originalPrice >= 500) {
+        return Math.round(originalPrice * 1.35); // +35%
+    } else if (originalPrice >= 200) {
+        return Math.round(originalPrice * 1.42); // +42%
+    } else { // For prices less than 200
+        return Math.round(originalPrice * 1.50); // +50%
+    }
+};
 
 const scrapeProducts = async (prisma) => {
     console.log('[SCRAPER] Iniciando scraping de productos...');
@@ -133,13 +143,15 @@ const scrapeProducts = async (prisma) => {
         for (const chunk of productChunks) {
             await Promise.allSettled(chunk.map(async (product) => {
                 let productPage;
+                const forceFullRescrape = process.env.FORCE_FULL_RESCRAPE === 'true';
+
                 try {
                     const existingProduct = await prisma.product.findUnique({
                         where: { id: product.id },
                         select: { description: true }
                     });
 
-                    if (existingProduct && existingProduct.description && existingProduct.description !== 'No hay descripción disponible.') {
+                    if (!forceFullRescrape && existingProduct && existingProduct.description && existingProduct.description !== 'No hay descripción disponible.') {
                         console.log(`[SCRAPER] Saltando ${product.name}, ya tiene descripción.`);
                         return;
                     }
@@ -200,7 +212,7 @@ const scrapeProducts = async (prisma) => {
                         allImageUrls.push('https://via.placeholder.com/150');
                     }
 
-                    const resalePrice = Math.round(product.originalPrice * (1 + priceIncreasePercentage / 100));
+                    const resalePrice = calculateResalePrice(product.originalPrice);
 
                     const brand = await prisma.brand.upsert({
                         where: { name: product.brandName },

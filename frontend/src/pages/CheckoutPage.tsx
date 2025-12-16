@@ -291,6 +291,13 @@ const CheckoutPage: React.FC = () => {
                 </dl>
 
                 <div className="border-t border-gray-200 px-4 py-6 sm:px-6">
+                  {/* Shipping Info Alert */}
+                  <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-400 text-blue-800 rounded-r-lg">
+                      <p className="font-bold">Aviso de Envío</p>
+                      <p className="text-sm mt-1">El tiempo de entrega estimado es de <strong>48 a 72 horas hábiles</strong> una vez que tu pago sea verificado.</p>
+                      <p className="text-sm mt-2">Te recomendamos estar atento al estado de tu orden en la sección <Link to="/my-orders" className="font-semibold underline hover:text-blue-900">"Mis Pedidos"</Link>.</p>
+                  </div>
+
                   <button
                     type="submit"
                     disabled={loading} // Use the loading state here

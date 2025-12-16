@@ -1,5 +1,5 @@
 const { PrismaClient } = require('./generated/prisma');
-const scrapeProducts = require('./externalProductService');
+const scrapeProducts = require('./services/externalProductService');
 
 const prisma = new PrismaClient();
 
